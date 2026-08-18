@@ -3,8 +3,8 @@
 library(dplyr)
 
 #GTF created through stringtie --merge on the 3x .gtfs in the 2021 IJMS publication
-#GENCODEv26 primary assembly merged with all 3 stranded .gtfs as in 3PLARVSMC_explore in the "R scripts" folder of that manuscript
-#There is a filtered version of this .gtf that was put into RSEM round II, but here we import the full merged .gtf (either would work?):
+#GENCODEv26 primary assembly merged with all 3 stranded .gtfs
+#There is a filtered version of this .gtf that was put into RSEM round II, but here we import the full merged .gtf:
 stringtie_gtf <- read.delim("3PLAR_allgenv26_Timecourse_ff.gtf", 
                             header= F, stringsAsFactors=F)
 head(stringtie_gtf)
