@@ -258,60 +258,6 @@ rpm_allmiRs_annotated$nameStars[grepl("<1%", rpm_allmiRs_annotated$Stars)] <-
   paste(rpm_allmiRs_annotated$name[grepl("<1%", rpm_allmiRs_annotated$Stars)], "***", sep = "")
 
 
-
-#### expression cut-off ####
-
-rpm_express_miR <- filter(rpm_allmiRs_annotated, rpm_max_treatment >1) #663 over 1 rpm
-
-rpm_express_miR <- filter(rpm_allmiRs_annotated, rpm_max_treatment >10) #358 over 10 rpm
-
-rpm_express_miR <- filter(rpm_allmiRs_annotated, rpm_max_treatment >100) #177 over 100 rpm
-
-#how many counts for miRs in 1-10rpm bracket? can we consider them exprssed? (prior papers use 256 count cutoff)
-rpm_express_miR_lo <- filter(miRTimecourse_DEnonDE_rpm, rpm_max_treatment >1 & rpm_max_treatment <=10) #663 over 1 rpm
-
-rpm_express_miR_lo_counts <- filter(countdata, Locus.Name %in% rpm_express_miR_lo$mergeCol)
-
-#from shortstack results (col explainers: https://github.com/MikeAxtell/ShortStack/tree/v3.8.2)
-Results$mergeCol <- paste(Results$X.Locus, Results$Name, sep = "+")
-rpm_express_miR_lo_results <- filter(Results, mergeCol %in% rpm_express_miR_lo$mergeCol)
-
-table(rpm_express_miR_lo_results$MIRNA)
-171/305
-#note that N1 means "no reads at all aligned in locus" so no idea how 5 of these have such high RPM...
-
-rpm_express_miR_lo2 <- filter(miRTimecourse_DEnonDE_rpm, rpm_max_treatment >10 & rpm_max_treatment <=100)
-rpm_express_miR_lo2_results <- filter(Results, mergeCol %in% rpm_express_miR_lo2$mergeCol)
-
-table(rpm_express_miR_lo2_results$MIRNA)
-107/181
-
-rpm_express_miR_lo3 <- filter(miRTimecourse_DEnonDE_rpm, rpm_max_treatment >100 & rpm_max_treatment <=500)
-rpm_express_miR_lo3_results <- filter(Results, mergeCol %in% rpm_express_miR_lo3$mergeCol)
-
-table(rpm_express_miR_lo3_results$MIRNA)
-68/86
-#starts to look a bit less noisy here
-
-rpm_express_miR_lo4 <- filter(miRTimecourse_DEnonDE_rpm, rpm_max_treatment >500 & rpm_max_treatment <=1000)
-rpm_express_miR_lo4_results <- filter(Results, mergeCol %in% rpm_express_miR_lo4$mergeCol)
-
-table(rpm_express_miR_lo4_results$MIRNA)
-13/15
-#trend continues
-
-
-#v. few of these remain if going above 10 rpmm:
-rpm_express_miR <- filter(miRTimecourse_DEnonDE_rpm, rpm_max_treatment >10) #358 over 10 rpm
-rpm_express_miR_results <- filter(Results, mergeCol %in% rpm_express_miR$mergeCol)
-
-table(rpm_express_miR_results$MIRNA)
-251/358
-#seems a sensible cut-off, gets rid of N1 without being too strict
-
-rpm_express_miR <- filter(rpm_allmiRs_annotated, rpm_max_treatment >10) #358 over 10 rpm
-
-
 #### DE miRs ####
 
 colnames(rpm_allmiRs_annotated)
@@ -357,18 +303,6 @@ rpm_express_miRstrict_DE <- filter(rpm_express_miR, DE_consensus == "DE")
 #write.csv(rpm_allmiRs_annotated, "rpm_allmiRs_annotated_2025.csv", row.names = F)
 
 rpm_allmiRs_annotated <- read.csv("\\\\cmvm.datastore.ed.ac.uk/cmvm/scs/groups/lncRNA_orthology/Timecourse/rpm_allmiRs_annotated_2025.csv")
-
-#overall filter - per 10 RPMM miRs
-rpm_express_miR <- filter(rpm_allmiRs_annotated, rpm_max_treatment >10) #358 over 10 rpm
-rpm_express_miR_DE <- filter(rpm_express_miR, DE_consensus == "DE")
-
-22/358 #only 6%
-
-
-#per 100 RPMM miRs (i.e. are we being too incusive of low expressed miRs?)
-rpm_express_miRstrict <- filter(rpm_allmiRs_annotated, rpm_max_treatment >100) #358 over 10 rpm
-rpm_express_miRstrict_DE <- filter(rpm_express_miR, DE_consensus == "DE")
-7/177 #4%, even less
 
 
 #### expected miRs ####
