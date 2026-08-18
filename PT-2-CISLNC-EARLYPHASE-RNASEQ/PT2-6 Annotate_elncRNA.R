@@ -121,17 +121,11 @@ Enhancer_lociII$DiffExprs[Enhancer_lociII$EnsID %in% fpkm_allGDE$EnsID] <- "Diff
 #write.csv(Enhancer_lociII, "Enhancer_lociIItime_2026.csv", row.names = F)
 Enhancer_lociII <- read.csv("\\\\cmvm.datastore.ed.ac.uk/cmvm/scs/groups/lncRNA_orthology/Timecourse/Enhancer_lociIItime.csv", header = T)
 
-#OUT OF DATE NUMBERS
-#597 lncs expressed
+
 length(unique(Enhancer_lociII$EnsID))
-#221 DE lncs over 24 hours:
 length(unique(filter(Enhancer_lociII, !is.na(DiffExprs))$EnsID))
-#98 enhancer lncs expressed
 length(unique(filter(Enhancer_lociII, !is.na(EnhancerVerdict))$EnsID))
-#54 enhancer lncs expressed and DE
 length(unique(filter(Enhancer_lociII, !is.na(DiffExprs), !is.na(EnhancerVerdict))$EnsID))
 
-221/597 #37% all lncs DE
-54/98   #55% of elncs DE
 
 #elncs are particularly IP responsive
