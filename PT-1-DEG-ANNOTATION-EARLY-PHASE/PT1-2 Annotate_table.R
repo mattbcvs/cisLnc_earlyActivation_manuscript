@@ -1,10 +1,8 @@
 #Add annotation and other fine detail to table, from GENv26 and PLAR
 
-#script written a long time ago and is a mess
-
 #GTF created through stringtie --merge on the 3x .gtfs in the 2021 IJMS publication
-#GENCODEv26 primary assembly merged with all 3 stranded .gtfs as in 3PLARVSMC_explore in the "R scripts" folder of that manuscript
-#this is the filtered version of this .gtf that was put into RSEM round II:
+#then merged ensembl genes sorted in PT-0 script
+#output gtf here:
 stringtie_gtf <- read.delim("\\\\cmvm.datastore.ed.ac.uk/cmvm/scs/groups/lncRNA_orthology/Timecourse/3PLAR_allgenv26_Timecourse_ff_nonMerge.gtf", 
                             header= F, stringsAsFactors=F)
 test_transcript<-stringtie_gtf[,"V3"]=="transcript"
@@ -159,6 +157,7 @@ colnames(file3) <- c("MSTRG_ID", "EnsID", "EnsName", "EnsType", "chr", "start", 
 #will do for now, bear in mind the gene locus columns don't really make sense:
 #taken from genv26
 
+#integrate outputs from PLAR
 #first batch of annotations, genes in first 4 timepoints
 Timecourse.annot.bed.assemblyStats <- read.delim("\\\\cmvm.datastore.ed.ac.uk/cmvm/scs/groups/lncRNA_orthology/Timecourse/PLAR_4timepoints/Timecourse3PLAR.annot.bed.assemblyStats.txt", header=FALSE, stringsAsFactors=FALSE)
 Timecourse.lincs.f1 <- read.delim("\\\\cmvm.datastore.ed.ac.uk/cmvm/scs/groups/lncRNA_orthology/Timecourse/PLAR_4timepoints/Timecourse3PLAR.lincs.f1.bed", header=FALSE, stringsAsFactors=FALSE)
@@ -249,120 +248,3 @@ filter(PLAR_Timecourse_4Timepoints_DEnonDE, EnsName == "AC002480.3")
 
 #write.csv(PLAR_Timecourse_4Timepoints_DEnonDE, "PLAR_Timecourse_4Timepoints_DEnonDE_2026.csv", row.names = F)
 
-#
-#### old code, think unnecessary #### 
-#find MSTRG IDs with two (or more) EnsIDs
-#suspected that these genes won't be functionally relevant as not expressed well enough to be accurately modelled by stringtie
-#not true though, contains: ACTA2, FOXL1, FOXC2, MIR222HG
-#don't assume!
-
-
-trial <- unique(convert_file[,5:7])
-length(unique(trial$gene_id))#17327 stringtie genes
-#isolate where 2x ens id 
-trialii <- trial[duplicated(trial[,1]),]
-trialii <- trial[trial$gene_id %in% trial$gene_id[duplicated(trial[,1])],]
-
-trialiii <- trialii[grepl("ENSG", trialii$ref_id),]
-trialiv <- unique(trialiii)
-trialiv <- trialiii$gene_id[duplicated(trialiii$gene_id)]
-trialiv <- unique(trialiv) #708 MSTRG IDs with >1 EnsID ~4% (1030 in 2024)
-
-#will deal with these on a case by case basis, providing ID and name in 2 extra columns for now
-MSTRGwithDupEns <- trialiii[trialiii$gene_id %in% trialiv,]
-missingENS <- MSTRGwithDupEns[!MSTRGwithDupEns$ref_id %in% file3$EnsID,]
-trial <- data.frame(missingENS, "MSTRG_ID_Factor" = as.factor(missingENS$gene_id), stringsAsFactors = F)
-trialii <- split(trial, trial$MSTRG_ID_Factor)
-trialiii <- sapply(trialii, function(x){paste(x$ref_id, collapse =", " )})
-trialiv <- sapply(trialii, function(x){paste(x$ref_name, collapse =", " )})
-trialv <- data.frame("MSTRG_ID" = names(trialiii), "AllENS" = unlist(trialiii), "AllNames" = unlist(trialiv), stringsAsFactors = F)
-
-trialvi <- merge(file3, trialv, by.x = "gene_id", by.y = "MSTRG_ID", all.x = T)
-file3 <- trialvi[,c(1,2,11:12,7,10,3:6,8:9)]
-colnames(file3) <- c("MSTRG_ID", "EnsID", "AllEns", "AllNames", "EnsName", "EnsType", "chr", "start", "stop",
-                     "str", "MSTRG_Tx_ID", "Tx_Locus")
-
-#first batch of annotations, genes in first 4 timepoints
-Timecourse.annot.bed.assemblyStats <- read.delim("\\\\cmvm.datastore.ed.ac.uk/cmvm/scs/groups/lncRNA_orthology/Timecourse/PLAR_4timepoints/Timecourse3PLAR.annot.bed.assemblyStats.txt", header=FALSE, stringsAsFactors=FALSE)
-Timecourse.lincs.f1 <- read.delim("\\\\cmvm.datastore.ed.ac.uk/cmvm/scs/groups/lncRNA_orthology/Timecourse/PLAR_4timepoints/Timecourse3PLAR.lincs.f1.bed", header=FALSE, stringsAsFactors=FALSE)
-Timecourse.lincs.f1.clean <- read.delim("\\\\cmvm.datastore.ed.ac.uk/cmvm/scs/groups/lncRNA_orthology/Timecourse/PLAR_4timepoints/Timecourse3PLAR.lincs.f1.clean.bed", header=FALSE, stringsAsFactors=FALSE)
-Timecourse.lincs.f1.pure <- read.delim("\\\\cmvm.datastore.ed.ac.uk/cmvm/scs/groups/lncRNA_orthology/Timecourse/PLAR_4timepoints/Timecourse3PLAR.lincs.f1.pure.bed", header=FALSE, stringsAsFactors=FALSE)
-
-trial <- sapply(as.list(Timecourse.annot.bed.assemblyStats$V1), strsplit, "\\|")
-triali <- unlist(sapply(trial, function(x){
-  x[length(x)]
-}))
-trial <- sapply(as.list(triali), strsplit, "\\:")
-Timecourse.annot.bed.assemblyStats$MSTRG_Tx_ID <- unlist(sapply(trial, "[[", 1))
-
-PLAR_Prefilter <- merge(file3, Timecourse.annot.bed.assemblyStats[,c(9,4,5,7,8)], by = "MSTRG_Tx_ID", all.x = T)
-
-trial <- sapply(as.list(Timecourse.lincs.f1$V4), strsplit, "\\|")
-triali <- unlist(sapply(trial, function(x){
-  x[length(x)]
-}))
-trial <- sapply(as.list(triali), strsplit, "\\:")
-Timecourse.lincs.f1$MSTRG_Tx_ID <- unlist(sapply(trial, "[[", 1))
-
-trial <- sapply(as.list(Timecourse.lincs.f1.clean$V4), strsplit, "\\|")
-triali <- unlist(sapply(trial, function(x){
-  x[grepl("\\:", x)]
-}))
-trial <- sapply(as.list(triali), strsplit, "\\:")
-Timecourse.lincs.f1.clean$MSTRG_Tx_ID <- unlist(sapply(trial, "[[", 1))
-
-trial <- sapply(as.list(Timecourse.lincs.f1.pure$V4), strsplit, "\\|")
-triali <- unlist(sapply(trial, function(x){
-  x[grepl("\\:", x)]
-}))
-trial <- sapply(as.list(triali), strsplit, "\\:")
-Timecourse.lincs.f1.pure$MSTRG_Tx_ID <- unlist(sapply(trial, "[[", 1))
-
-PLAR_Prefilter$linc_pred_level[PLAR_Prefilter$MSTRG_Tx_ID %in% Timecourse.lincs.f1$MSTRG_Tx_ID] <- "potential_linc"
-PLAR_Prefilter$linc_pred_level[PLAR_Prefilter$MSTRG_Tx_ID %in% Timecourse.lincs.f1.clean$MSTRG_Tx_ID] <- "clean_linc"
-PLAR_Prefilter$linc_pred_level[PLAR_Prefilter$MSTRG_Tx_ID %in% Timecourse.lincs.f1.pure$MSTRG_Tx_ID] <- "pure_linc"
-
-colnames(PLAR_Prefilter)[13:16] <- c("Exon_count", "Spliced_length", "PLAR_Prefilter", "Tx_FPKM")
-trial <- PLAR_Prefilter[,c(2:11,1,12:14,16,15,17)]
-
-#write.csv(trial, "PLAR_Timecourse4points.csv", row.names = F)
-
-
-## add to DE FPKM table ####
-
-PLAR_Timecourse_4Timepoints_DEnonDE <- merge(trial, Timecourse_4Timepoints_DEnonDE, by.x = "MSTRG_ID", by.y = "ENSEMBL")
-PLAR_Timecourse_4Timepoints_DEnonDE <- PLAR_Timecourse_4Timepoints_DEnonDE[,c(1:10,18:55,11:17)] 
-
-#add average isoform fpkm:
-isoforms<-read.table(iso_filenames[1],header=TRUE,sep="\t",stringsAsFactors = FALSE)[,1]
-
-#extract isoform FPKM info
-iso_fpkm <-do.call(cbind,lapply(iso_filenames,function(fn)read.table(fn,header=TRUE,sep="\t",stringsAsFactors = FALSE)[,7]))
-iso_fpkm <- data.frame(isoforms, iso_fpkm, stringsAsFactors = FALSE)
-colnames(iso_fpkm)<-c("ENSEMBL",actualnames)
-
-fpkm_list_ctrl <- as.list(as.data.frame(t(iso_fpkm[,2:5])))
-fpkm_list_pd <- as.list(as.data.frame(t(iso_fpkm[,6:9])))
-fpkm_list_il <- as.list(as.data.frame(t(iso_fpkm[,10:13])))
-fpkm_list_bo <- as.list(as.data.frame(t(iso_fpkm[,14:17])))
-
-fpkm_mean_ctrl <- sapply(fpkm_list_ctrl, mean)
-fpkm_mean_pd <- sapply(fpkm_list_pd, mean)
-fpkm_mean_il <- sapply(fpkm_list_il, mean)
-fpkm_mean_bo <- sapply(fpkm_list_bo, mean)
-
-fpkm_mean_treatment <- data.frame(fpkm_mean_ctrl, fpkm_mean_pd, fpkm_mean_il, fpkm_mean_bo)
-
-trial <- as.list(as.data.frame(t(fpkm_mean_treatment)))
-fpkm_max_treatment <- as.numeric(sapply(trial, max))
-
-iso_fpkm <- cbind(iso_fpkm,fpkm_mean_treatment, fpkm_max_treatment)
-colnames(iso_fpkm)[22] <- "isoform_fpkm_max_treatment"
-
-PLAR_Timecourse_4Timepoints_DEnonDE <- merge(PLAR_Timecourse_4Timepoints_DEnonDE, iso_fpkm[,c(1,22)], by.x = "MSTRG_Tx_ID", by.y = "ENSEMBL")
-PLAR_Timecourse_4Timepoints_DEnonDE <- PLAR_Timecourse_4Timepoints_DEnonDE[,c(2:49,1,50:53,56,54:55)]
-
-#quick check on lncs of interest:
-filter(PLAR_Timecourse_4Timepoints_DEnonDE, EnsName == "SMILR")
-
-#write.csv(PLAR_Timecourse_4Timepoints_DEnonDE, "PLAR_Timecourse_4Timepoints_DEnonDE_2026.csv", row.names = F)
