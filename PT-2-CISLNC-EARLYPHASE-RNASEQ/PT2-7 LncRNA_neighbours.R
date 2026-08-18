@@ -18,7 +18,7 @@ Enhancer_lociII_DEsig_Enh$Enhancer_Coords <- paste(Enhancer_lociII_DEsig_Enh$chr
                                                    Enhancer_lociII_DEsig_Enh$Enh_Start, 
                                                    Enhancer_lociII_DEsig_Enh$Enh_Stop, sep = ",")
 
-#### correct TSS for lncRNAs ####
+#### correct TSS for lncRNAs with a matched CAGE ####
 
 #Get TSS from FANTOM and TSS from GENCODE in same column
 Enhancer_lociII_DEsig_Enh$TSS_FANTOM_GENCODE <- Enhancer_lociII_DEsig_Enh$BestStart
