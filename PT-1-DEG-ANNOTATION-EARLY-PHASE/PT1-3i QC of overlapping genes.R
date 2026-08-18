@@ -2,9 +2,8 @@
 
 #### key info, FPKM table ####
 samplenames <- list.files("\\\\cmvm.datastore.ed.ac.uk/cmvm/scs/groups/lncRNA_orthology/Timecourse/rsem_4timepoints(NovelTx) calc-ci/", pattern = "*genes.results", full.names = TRUE)[1:16]
-#samplenames <- list.files("\\\\cmvm.datastore.ed.ac.uk/cmvm/scs/groups/lncRNA_orthology/Timecourse/rsem_4timepoints(NovelTx)/", pattern = "*genes.results", full.names = TRUE)[1:16]
 
-#sample info from Amira
+#sample info pasted from Amira
 actualnames <- c("1) Pt151 - 0h 2) Pt151 - 4h 3) Pt151 - 8h 4) Pt151 - 24h 
                  5) Pt157 - 0h 6) Pt157 - 4h 7) Pt157 - 8h 8) Pt157 - 24h 
                  9) Pt134 - 0h 10) Pt134 - 4h 11) Pt134 - 8h 12) Pt134 - 24h 
@@ -185,9 +184,8 @@ iso_pct$iso_dominant <- NA
 iso_pct$iso_dominant[iso_pct$transcript_id %in% unlist(iso_dominant)] <- "Dominant_iso"
 
 iso_pct_10 <- filter(iso_pct, iso_dominant == "Dominant_iso")
-#some weird cases like NR2F2-AS1 to review in future, not consistent across reps per condition (maybe remove large ICV tx?)
 
-#shouldn't be losing any genes:
+#sanity check on genes retained:
 length(unique(iso_pct$gene_id))
 length(unique(iso_pct_10$gene_id))
 #limitation: a v. highly expressed PCG may have a low expressed tx that overlaps a low expressed lnc
@@ -259,55 +257,8 @@ FPKM_CQV_OVERLAP_fpkm <- read.csv("\\\\cmvm.datastore.ed.ac.uk/cmvm/scs/groups/l
 
 SameoverlapsG_lncs <- merge(SameoverlapsG_lncs, FPKM_CQV_OVERLAP_fpkm[,c(1,10)], by.x = "EnsID.x", by.y = "EnsID.x", all.x = T)
 
-#manual checks on all:
+#save and run manual checks on all in IGV:
 #write.csv(SameoverlapsG_lncs, "SameoverlapsG_lncs_151225.csv", row.names = F)
-
-
-missingFromPrior <- filter(SameoverlapsG_lncs, is.na(IGV))
-
-length(unique(SameoverlapsG_lncs$EnsID.x))
-length(unique(missingFromPrior$EnsID.x))
-
-summary(FPKM_CQV_OVERLAP_fpkm$MaxPercentOverlap)
-summary(SameoverlapsG_lncs$MaxPercentOverlap)
-
-#334 missing... some maybe don't need checking ...
-#one or other gene not expressed?
-fpkm_allG_old <- read.csv("\\\\cmvm.datastore.ed.ac.uk/cmvm/scs/groups/lncRNA_orthology/Timecourse/fpkm_allGClassUpdate.csv", header = T)
-
-#203 because one or other not expressed in previous
-missingDueToNonExpression <- filter(missingFromPrior, !EnsID.x %in% fpkm_allG_old$EnsID | !EnsID.y %in% fpkm_allG_old$EnsID)
-
-
-#all lncRNAs checked manually and passed/failed via visual inspeection of IGV locus
-# require clear signal over exons that can only be explained by lncRNA annotaiton
-# borderline called as fails
-
-# expected to be about 4-5hrs of checking to get through... did ~40 in 30mins
-
-#fail rate justifies, out of 40, 13 fails found, unacceptably high
-
-# additional lncRNAs from
-# a) lowering threshold to FPKM >0.8
-# b) splitting up ens genes
-# c) max pct overlap was previously set at 10%
-
-#### Combine into table of data for assessing overlap artefacts ####
-
-FPKM_CQV_OVERLAP <- data.frame("gene" = fpkm$ENSEMBL,
-                               "fpkm_max" = fpkm$fpkm_max_treatment#,
-                               #"fpkmCQV_max" = fpkmCQV$fpkmCQV_max_treatment
-                               )
-trial <- unique(merge(FPKM_CQV_OVERLAP, SameoverlapsG, by.x = "gene", by.y = "MSTRG_ID.x"))
-FPKM_CQV_OVERLAP <- unique(merge(trial, fpkm_allG[,c(1,2)], by.x = "gene", by.y = "MSTRG_ID"), all.x = T)
-#can now assess all expressed genes in the timecourse for their expression in hour 0
-length(unique(FPKM_CQV_OVERLAP$EnsID))#11815 genes
-length(unique(fpkm_allG$EnsID))
-
-write.csv(FPKM_CQV_OVERLAP, "FPKM_CQV_OVERLAP_26.csv")
-
-#take to manually check lncRNAs:
-FPKM_CQV_OVERLAP_lncs <- unique(filter(FPKM_CQV_OVERLAP, EnsID %in% unique(filter(fpkm_allG, V55 == "Bona fide lncRNA")$EnsID)))
 
 
 
