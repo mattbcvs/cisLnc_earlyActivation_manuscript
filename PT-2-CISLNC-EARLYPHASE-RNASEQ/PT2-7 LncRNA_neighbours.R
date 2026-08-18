@@ -52,7 +52,7 @@ length(unique(allGB$MSTRG_Tx_ID))#42511 TSS total (multiple TSS per gene now - t
 
 #### assign neighbours to lncRNAs ####
 
-#isolate the 1575 lncRNA tx
+#isolate the lncRNA tx
 allGB_LNCS <- filter(allGB, EnsID %in% filter(fpkm_allG, grepl("Lnc|fide", GeneClassUpdate))$EnsID)
 length(unique(allGB_LNCS$EnsID))
 
@@ -171,90 +171,3 @@ length(unique(AllLNC_AllPCG_info$EnsID.y)) #5351 pcgs
 
 #write.csv(AllLNC_AllPCG_info, "AllLNC_AllPCG_info_2026.csv", row.names = F)
 
-
-#### old code - wrong/imprecise gene co-ords ####
-#table of all lncRNAs + CAGE sites if available + TSS based on CAGE if available:
-Enhancer_lociII <- read.csv("\\\\cmvm.datastore.ed.ac.uk/cmvm/scs/groups/lncRNA_orthology/Timecourse/Enhancer_lociIItime.csv", header = T)
-Enhancer_lociII_DEsig_Enh <- Enhancer_lociII
-length(unique(Enhancer_lociII_DEsig_Enh$EnsID))#selecting all lncs = 558 genes, if just enhancer = 77 (7/2021)
-#get co-ords based on FANTOM TSS
-Enhancer_lociII_DEsig_Enh$Enhancer_Coords <- paste(Enhancer_lociII_DEsig_Enh$chr, 
-                                                   Enhancer_lociII_DEsig_Enh$Enh_Start, 
-                                                   Enhancer_lociII_DEsig_Enh$Enh_Stop, sep = ",")
-
-#some stats (pre-AS artefact filtering):
-#558 lncs expressed
-length(unique(Enhancer_lociII$EnsID))
-#234 DE lncs over 24 hours:
-length(unique(filter(Enhancer_lociII, !is.na(DiffExprs))$EnsID))
-#77 enhancer lncs expressed
-length(unique(filter(Enhancer_lociII, !is.na(EnhancerVerdict))$EnsID))
-#41 enhancer lncs expressed and DE
-length(unique(filter(Enhancer_lociII, !is.na(DiffExprs), !is.na(EnhancerVerdict))$EnsID))
-
-fpkm_allG <- read.csv("\\\\cmvm.datastore.ed.ac.uk/cmvm/scs/groups/lncRNA_orthology/Timecourse/fpkm_allGClassUpdate.csv", header = T)
-length(unique(fpkm_allG$EnsID))#11815 genes
-
-
-fpkm_PCG_hSVSMC <- filter(fpkm_allG, `V57` == "Protein coding" | grepl("TF", V57) | grepl("CC", V57) )
-fpkm_PCG_hSVSMC <- unique(fpkm_PCG_hSVSMC[,c(2,5,7:10,27,29,31,33,35,60)])
-length(unique(fpkm_PCG_hSVSMC$EnsID))#10213 PC genes
-length(unique(fpkm_allG$EnsID))#11815 genes
-fpkm_PLARG <- filter(fpkm_allG, `V57` == "Bona fide lncRNA" | grepl("ELnc", V57) | grepl("VLnc", V57))
-length(unique(fpkm_PLARG$EnsID))#558 lnc genes
-
-trial <- filter(Enhancer_lociII_DEsig_Enh, EnsID %in% fpkm_PLARG$EnsID)
-trial <- unique(trial[,c(19,17,18,43)])
-trial <- split(trial, trial$Enhancer_Coords)
-
-
-triali <- lapply(trial, function(z){
-  filter(fpkm_PCG_hSVSMC[fpkm_PCG_hSVSMC$str == "+",], 
-         (chr == z$chr & start>z$Enh_Start-250000 & start<z$Enh_Stop+250000))
-})
-
-trialii <- lapply(trial, function(z){
-  filter(fpkm_PCG_hSVSMC[fpkm_PCG_hSVSMC$str == "-",], 
-         (chr == z$chr & stop>z$Enh_Start-250000 & stop<z$Enh_Stop+250000))
-})
-
-triali <- unique(bind_rows(triali, .id = "Enhancer_Coords"))
-triali <- unique(triali)
-
-trialii <- unique(bind_rows(trialii, .id = "Enhancer_Coords"))
-trialii <- unique(trialii)
-
-ProximalDEBO <- rbind(triali, trialii)
-
-trial <- merge(Enhancer_lociII_DEsig_Enh, ProximalDEBO, by = "Enhancer_Coords", all.x = T)
-
-AllLNC_AllPCG_1 <- trial
-colnames(AllLNC_AllPCG_1)
-#lncRNA name missing for some reason:
-AllLNC_AllPCG_1 <- unique(merge(fpkm_allG[,c(2,5)], AllLNC_AllPCG_1, by.x = "EnsID", by.y = "EnsID.x", all.y = T))
-length(unique(AllLNC_AllPCG_1$EnsID))
-length(unique(filter(AllLNC_AllPCG_1, !is.na(EnsID.y))$EnsID))#497 in range of a PCG
-length(unique(AllLNC_AllPCG_1$EnsID.y))#1962 partners
-
-#simplify:
-#genes with any elnc tx should all be called elnc:
-trial <- AllLNC_AllPCG_1
-elncs <- unique(filter(trial, EnhancerVerdict == "Enhancer")$EnsID)
-trial$EnhancerVerdict <- "Non-enhancer"
-trial$EnhancerVerdict[trial$EnsID %in% elncs] <- "Enhancer"
-#excess columns off
-triali <- unique(trial[,c(1,2,43,45,46,56)])
-
-#2D pairs with TSS within 250kbp table:
-AllLNC_AllPCG_1 <- triali
-
-#write.csv(AllLNC_AllPCG_1, "\\\\cmvm.datastore.ed.ac.uk/cmvm/scs/groups/lncRNA_orthology/Timecourse/AllLNC_AllPCG_1.csv", row.names =  F)
-
-#n.b. some final edits needed after importing the above object:
-#double check no AS artefacts, no PLAR only "PCGs", must have ENCODE annotation
-AllLNC_AllPCG_1$pairs <- paste(AllLNC_AllPCG_1$EnsID, AllLNC_AllPCG_1$EnsID.y, sep="-")
-
-AllLNC_AllPCG_1 <- filter(AllLNC_AllPCG_1, EnsID %in% fpkm_allG$EnsID, EnsID.y %in% fpkm_allG$EnsID) #all good - none removed
-AllLNC_AllPCG_1 <- filter(AllLNC_AllPCG_1, EnsID.y %in% filter(fpkm_allG, EnsType == "protein_coding")$EnsID) #removes about 5
-#this last step is bit more stringent than previous PCG analysis where just had to be called PCG by PLAR (not PLAR and Ens)
-#1684 pairings of lnc-PCG expressed near to each other
