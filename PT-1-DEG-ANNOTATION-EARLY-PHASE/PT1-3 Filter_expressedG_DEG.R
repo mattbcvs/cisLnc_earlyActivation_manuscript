@@ -20,19 +20,10 @@ table(trialiv) #no genes returning >7 transcripts, no need to trim further
 fpkm_lowCompTx <- unlist(unlist(trialiii))
 length(unique(fpkm_lowCompTx)) #48962 (one is NA) tx in total (~33k are <5%)
 
-#don't recommend this in future, makes it difficult for assessing some low-expressed genes with complex splice patterns (i.e. lncRNAs)
-#e.g. a gene with FPKM of 5 but 6 transcripts all below 1 is lost, but still a well-expressed locus
-#fpkm_allTx <- filter(PLAR_Timecourse_4Timepoints_DEnonDE, Tx_Max_Average >0.3)
-#optional, slightly more permissive version to find miR hosts (includes MIR99AHG):
-#fpkm_allTx <- filter(PLAR_Timecourse_4Timepoints_DEnonDE, isoform_fpkm_max_treatment >0.5)
-
 fpkm_allTx <- filter(PLAR_Timecourse_4Timepoints_DEnonDE, MSTRG_Tx_ID %in% fpkm_lowCompTx) 
 length(unique(fpkm_allTx$MSTRG_Tx_ID))#48962 Tx
 length(unique(fpkm_allTx$EnsID))#18672 Genes
 
-#30x genes with gene FPKM of 0 removed:
-View(filter(PLAR_Timecourse_4Timepoints_DEnonDE, !EnsID %in% fpkm_allTx$EnsID))
-View(filter(PLAR_Timecourse_4Timepoints_DEnonDE, fpkm_max_treatment == 0))
 
 ##### assign tx/gene classes ####
 #simplify PLAR pre-filter classes (any coding ORF in databases put into one group)
@@ -49,18 +40,14 @@ fpkm_allTx$linc_pred_level[is.na(fpkm_allTx$linc_pred_level)] <- "Repetitive/rar
 fpkm_allTx$linc_pred_level[fpkm_allTx$PLAR_Prefilter == "Single exon stringent"] <- "Single exon artefacts"
 fpkm_allTx$linc_pred_level[grepl("Too low", fpkm_allTx$PLAR_Prefilter)] <- "Too low"
 
-#write.csv(fpkm_allTx, "fpkm_allTxUpdate23.csv", row.names = F)
 table(fpkm_allTx$linc_pred_level)
 #2932(869) bona fide lncRNA transcripts expressed
 
 #extrapolate to gene level:
-fpkm_allG <- filter(fpkm_allTx, fpkm_max_treatment >0.8) #permissive, for AC002480.3
+fpkm_allG <- filter(fpkm_allTx, fpkm_max_treatment >0.8)
 length(unique(fpkm_allG$MSTRG_Tx_ID))#44225 Tx
 length(unique(fpkm_allG$EnsID))#14235 Genes
 table(fpkm_allG$linc_pred_level)
-
-#no genes lost/gained (be aware: using tx table for this means cuts out some genes >1FPKM on gene level but with no transcripts >1 e.g. MIR99AHG)
-#                      (too late to change but will affect complex and low expressed loci - USP45 another example)
 
 #assign classes to each gene
 fpkm_remnantsG <- fpkm_allG[is.na(fpkm_allG$linc_pred_level),]
@@ -85,11 +72,11 @@ length(unique(fpkm_allG$EnsID))#14235 expressed genes:
 #847 bona fide lncs
 #11887 PCGs (increases relative to previous)
 
-#deal with legitimate duplicates
+#sanity check - search for duplicates
 ref_ids <- unique(fpkm_allG[,1:2])
 ref_ids <- ref_ids[duplicated(ref_ids$EnsID),1:2]
 trial <- fpkm_allG[fpkm_allG$EnsID %in% ref_ids$EnsID, 1:2]
-#none found (dealt with earlier)
+#none found
 
 #deal with rounding error duplicates
 fpkm_allG[,c(25:33,51:52)] <- round(fpkm_allG[,c(25:33,51:52)], 2)
@@ -118,11 +105,6 @@ length(unique(filter(fpkm_allGDE_lrt, EnsID %in% fpkm_allGDE_pairs$EnsID)$EnsID)
 length(unique(fpkm_allGDE_lrt$EnsID)) #5412 LRT DEGs 4636/4865 
 length(unique(fpkm_allGDE_pairs$EnsID)) #5880 pairwise DEGs 4636/5226
 
-#append to fpkm_allG:
-#fpkm_allG$DE_LRT[fpkm_allG$EnsID %in% fpkm_allGDE_lrt$EnsID] <- "DE"
-#fpkm_allG$DE_pairs[fpkm_allG$EnsID %in% fpkm_allGDE_pairs$EnsID] <- "DE"
-#fpkm_allG$DE_consensus[!is.na(fpkm_allG$DE_LRT) & !is.na(fpkm_allG$DE_pairs)] <- "DE"
-
 #Overlap probs best, kicks out low fold changing genes (LRT only) or inconsistent changing genes (Pairwise only)
 fpkm_allGDE <- filter(fpkm_allGDE_lrt, EnsID %in% fpkm_allGDE_pairs$EnsID)
 
@@ -142,6 +124,3 @@ filter(fpkm_allG, EnsID == "MSTRG.24277")
 
 filter(fpkm_allGDE, EnsID == "MSTRG.12915")
 filter(fpkm_allGDE, EnsName == "AC002480.4")
-
-
-#write.csv(<this is where the DEG object was made originally>)
