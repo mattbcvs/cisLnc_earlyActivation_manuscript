@@ -1,4 +1,4 @@
-#### including PCG-PCG as comparison group ####
+#### including PCG-PCG neighbours as comparison group ####
 library(dplyr)
 library(GenomicRanges)
 library(ggplot2)
@@ -6,27 +6,6 @@ library(rcompanion)
 library(ggbeeswarm)
 library(rtracklayer)
 library(GenomicRanges)
-
-#seperate DE PCGs into key groups, 
-#a) CCLnc target (done)
-#b) co-regulated with a lncRNA (done)
-#c) co-regulated with a PCG (to do here)
-#d) not a neighbour of a regulated gene (any remaining)
-
-#previously also including PCGs which are co-regulated/correlated with a co-regulated PCG as a control group
-#i.e. I followed the process to predict cis-acting lncRNAs for PCGs as well, to use as a control group
-#this is possible but would need to have the eQTL analysis to compare properly - big files for a large number of gene pairs probably
-
-#look to do co-regulation only for now - revisit and discuss...
-
-#tests will be:
-#a) elevated FC (previously a strong change between groups)
-#b) propensity to have a co-regulated partner
-#c) propensity to have a co-regulated partner, with timing for cis-action
-#d) propensity to have a co-regulated partner, with timing for cis-action and HiC/correlation back-up (similar to what worked previously)
-#e) GO terms for CCLncs vs. co-regulated with a PCG
-#f) optional: HiC loop contact points (requires some thought)
-
 
 #### finding 2d neighbours ####
 
@@ -115,37 +94,8 @@ AllPCG_AllPCG_1$pairs <- paste(AllPCG_AllPCG_1$EnsID, AllPCG_AllPCG_1$EnsID.y, s
 
 AllPCG_AllPCG_1 <- AllPCG_AllPCG_1[,c(2:4,1,5:7)]
 
-#65938 pairs, 10764 PCGs with another nearby
 length(unique(AllPCG_AllPCG_1$EnsName.x))
 #write.csv(AllPCG_AllPCG_1, "AllPCG_AllPCG_1_2026_250.csv", row.names =  F)
-
-#obsolete, makes it much easier later on to have these types of "reverse pairs"
-#remove any which are same pair in reverse orientation:
-#AllPCG_AllPCG_1$pairs2 <- paste(AllPCG_AllPCG_1$EnsID.y, AllPCG_AllPCG_1$EnsID, sep="-")
-
-#to avoid duplicates in pair ID, for each row, order each pair by alphabet:
-#trial <- lapply(as.list(as.data.frame(t(AllPCG_AllPCG_1[,c(1,4)]))), function(x){
-#  paste(x[order(x)], collapse = "-")
-#})
-
-#AllPCG_AllPCG_1$pairs3 <- unlist(trial)
-#mostly pairs, one singlet..
-#table(table(AllPCG_AllPCG_1$pairs3))
-
-#for each sorted pair label, remove any after first row:
-#trial <- split(AllPCG_AllPCG_1, AllPCG_AllPCG_1$pairs3)
-
-#triali <- lapply(trial, function(x){
-#  x[1,]
-#})
-
-#triali <- bind_rows(triali)
-#AllPCG_AllPCG_1 <- triali[,c(1:6,9)]
-
-#table(table(AllPCG_AllPCG_1$EnsID))
-
-#write.csv(AllPCG_AllPCG_1, "AllPCG_AllPCG_1_Q4.csv", row.names =  F)
-
 
 #### closest neighbour filtering ####
 
@@ -176,16 +126,6 @@ AllPCG_AllPCG_1 <- trial
 closestNeighbourPCG <- AllPCG_AllPCG_1
 closestNeighbourPCG <- split(closestNeighbourPCG, closestNeighbourPCG$EnsID)
 
-#some alternatives
-#closest neighbour
-#closestNeighbourPCG <- lapply(closestNeighbourPCG, function(x){
-#  filter(x, AbsDistLnc_PCG == min(AbsDistLnc_PCG))})
-
-#closest neighbours
-#closestNeighbourPCG <- lapply(closestNeighbourPCG, function(x){
-#  x[order(x$DisLnc_PCG, decreasing = F),][1:5,]}
-#)
-
 #surrounding neighbours:
 closestNeighbourPCG <- lapply(closestNeighbourPCG, function(x){
   upstream <- filter(x, DistLnc_PCG < 0)
@@ -199,23 +139,9 @@ closestNeighbourPCG <- lapply(closestNeighbourPCG, function(x){
 closestNeighbourPCG <- bind_rows(closestNeighbourPCG)
 closestNeighbourPCG <- filter(closestNeighbourPCG, !is.na(pairs))
 
-#should be equal numbers in both? TSS of gene1 in range of gene2 and vice-versa
-length(unique(closestNeighbourPCG$EnsID))
-length(unique(closestNeighbourPCG$EnsID.y))
-
-#24 not found in y...
-missingInCol2 <- unique(closestNeighbourPCG$EnsID)[!unique(closestNeighbourPCG$EnsID) %in% unique(closestNeighbourPCG$EnsID.y)]
-
-#to do with isoforms, keep simple and use EnsID
-
 AllPCG_AllPCG_1 <- closestNeighbourPCG
 
 #### (2D) CC-PCGs in same time frame ####
-
-#AllPCG_AllPCG_1 <- read.csv("\\\\cmvm.datastore.ed.ac.uk/cmvm/scs/groups/lncRNA_orthology/Timecourse/AllPCG_AllPCG_1_2026.csv")
-
-# like with the lncRNA figure, some of this could be driven by 0% chance for "later timeframe" CClncs to be 8-24hr 
-#so run a version excluding later too
 
 CoRegPairs_04_48_24_samePCG <- filter(AllPCG_AllPCG_1,
                                       #AllLNC_AllPCG_1,
@@ -227,7 +153,6 @@ CoRegPairs_04_48_24_samePCG <- filter(AllPCG_AllPCG_1,
                                         (EnsID %in% c(fpkm_allGDE_Upwithin_24$EnsID, 
                                                       fpkm_allGDE_Downwithin_24$EnsID) & EnsID.y %in% c(fpkm_allGDE_Upwithin_24$EnsID, fpkm_allGDE_Downwithin_24$EnsID)))
 length(unique(c(CoRegPairs_04_48_24_samePCG$EnsID)))
-#1100 @250kbp - surrounding neighbours
 
 fpkm_allGDE$CCPCGSame <- fpkm_allGDE$Simple
 fpkm_allGDE$CCPCGSame[fpkm_allGDE$EnsID %in% CoRegPairs_04_48_24_samePCG$EnsID] <- "CCPCGSame"
@@ -268,8 +193,6 @@ triali <- bind_rows(LncEnrich_cluster, .id = "Cluster")
 rownames(triali) <- NULL
 colnames(triali) <- c("Cluster", "OR", "p")
 triali$p_adj <- p.adjust(triali$p, method = "BH")
-#Induced first timepoint, rarely at second
-#2x significant biases
 
 #percentage plots
 trial$FirstRegulation <- c("Within \n4hrs", "Within \n8hrs", "Within \n24hrs", "Within \n4hrs", "Within \n8hrs", "Within \n24hrs")
@@ -304,10 +227,6 @@ ggplot(CCPCGSameWaveBias, aes(x = FirstRegulation)) +
 
 
 #### (2D) bias of CCPCGs (any timeframe) ####
-
-#AllPCG_AllPCG_1 <- read.csv("\\\\cmvm.datastore.ed.ac.uk/cmvm/scs/groups/lncRNA_orthology/Timecourse/AllPCG_AllPCG_1_2026.csv")
-
-#recreate the 2D, prior to HiC
 
 CoRegPairs_04_48_24_extendedPCG <- filter(AllPCG_AllPCG_1,
                                           #AllLNC_AllPCG_1,
@@ -368,8 +287,6 @@ triali <- bind_rows(PCGEnrich_cluster, .id = "Cluster")
 rownames(triali) <- NULL
 colnames(triali) <- c("Cluster", "OR", "p")
 triali$p_adj <- p.adjust(triali$p, method = "BH")
-#Induced first timepoint, rarely at second
-#2x significant biases
 
 #percentage plots
 trial$FirstRegulation <- c("Within \n4hrs", "Within \n8hrs", "Within \n24hrs", "Within \n4hrs", "Within \n8hrs", "Within \n24hrs")
@@ -401,8 +318,6 @@ ggplot(CCPCGWaveBias, aes(x = FirstRegulation)) +
                      labels = (c(seq(20, 0, by = -20), seq(20,45,by=20)))) +
   theme_minimal() +
   theme(text = element_text(size = 15), legend.position = "none")
-
-#first wave
 
 
 #### smaller OR dotplot figure, naive approach ####
@@ -436,14 +351,7 @@ AllTypesWaveBias$UpDownType <- paste(AllTypesWaveBias$Var1, AllTypesWaveBias$UpD
 #insert spacers for plotting:
 AllTypesWaveBias <- AllTypesWaveBias[,c(15,4,12,14)]
 
-appendSpacers <- data.frame(UpDownType = c(rep("Spacer1",3)#,
-                                           #rep("Spacer2",3),
-                                           #rep("Spacer3",3),
-                                           #rep("Spacer4",3)#,
-                                           #rep("Spacer5",3),
-                                           #rep("Spacer6",3),
-                                           #rep("Spacer7",3),
-                                           #rep("Spacer8",3)
+appendSpacers <- data.frame(UpDownType = c(rep("Spacer1",3
 ), 
 "FR" = rep(c("Within \n4hrs",
              "Within \n8hrs",
@@ -475,8 +383,6 @@ AllTypesWaveBias$FirstRegulation[AllTypesWaveBias$FirstRegulation == "Within \n8
 AllTypesWaveBias$FirstRegulation[AllTypesWaveBias$FirstRegulation == "Within \n24hrs"] <- "8-24hrs"
 
 AllTypesWaveBias$FirstRegulation <- factor(AllTypesWaveBias$FirstRegulation)
-#AllTypesWaveBias$FirstRegulation <- factor(AllTypesWaveBias$FirstRegulation, levels = levels(AllTypesWaveBias$FirstRegulation)[c(2,3,1)])
-
 
 ggplot(AllTypesWaveBias) + aes(x = FirstRegulation, y = UpDownType, size = padj_simple, fill = `Log2(Odds Ratio)`) +
   geom_point(color = "grey30", shape = 21) +
@@ -496,7 +402,6 @@ ggplot(AllTypesWaveBias) + aes(x = FirstRegulation, y = UpDownType, size = padj_
         axis.title.x = element_text(size=18),
         #axis.text.y = element_blank()
   ) + Seurat::RotatedAxis()
-
 
 
 #### comparing 4hr induction biases, lncs + PCGs with co-reg neighbours ####
@@ -520,8 +425,6 @@ fisher.test(data.frame("LncRNA" = c(aii,bii-aii),
 trial <- data.frame(37/81*100, 565/1847*100)
 
 colnames(trial) <- c("CClncRNAs (same/later)",  "CCPCGs (same/later)")
-
-#melt(trial)
 
 trial <- melt(trial)
 
@@ -556,8 +459,6 @@ fisher.test(data.frame("LncRNA" = c(aii,bii-aii),
 trial <- data.frame(24/51*100, 295/1100*100)
 
 colnames(trial) <- c("CClncRNAs (same/later)",  "CCPCGs (same/later)")
-
-#melt(trial)
 
 trial <- melt(trial)
 
@@ -600,15 +501,7 @@ for (i in (1:length(backgrounds_list))){
       filter(backgrounds_listi[[i]], grepl("coding|TF|CC", GeneClassUpdate))$EnsID)
   ))
   
-  #use pre-filtered to closest neighbour, all hits in PCGs
-  #c <- length(unique(
-  #  c(filter(backgrounds_list[[i]], grepl("coding|TF|CC", GeneClassUpdate),
-  #           EnsID %in% filter(closestNeighbourPCG, EnsID.y %in% cisPotentialTargets)$EnsID)$EnsID,
-  #    filter(backgrounds_listi[[i]], grepl("coding|TF|CC", GeneClassUpdate),
-  #           EnsID %in% filter(closestNeighbourPCG, EnsID.y %in% cisPotentialTargetsi)$EnsID)$EnsID)
-  #))
-  
-  #or all hits in PCGs
+  # hits in PCGs
   c <- length(unique(
     c(filter(backgrounds_list[[i]], grepl("coding|TF|CC", GeneClassUpdate),
              EnsID %in% filter(AllPCG_AllPCG_1, EnsID.y %in% cisPotentialTargets)$EnsID)$EnsID,
@@ -621,14 +514,6 @@ for (i in (1:length(backgrounds_list))){
     c(filter(backgrounds_list[[i]], grepl("fide|Lnc", GeneClassUpdate))$EnsID,
       filter(backgrounds_listi[[i]], grepl("fide|Lnc", GeneClassUpdate))$EnsID)
   ))
-  
-  #use pre-filtered to closest neighbours only - for specificity
-  #a <- length(unique(
-  #  c(filter(backgrounds_list[[i]], grepl("fide|Lnc", GeneClassUpdate),
-  #           EnsID %in% filter(closestNeighbour, EnsID.y %in% cisPotentialTargets)$EnsID)$EnsID,
-  #    filter(backgrounds_listi[[i]], grepl("fide|Lnc", GeneClassUpdate),
-  #           EnsID %in% filter(closestNeighbour, EnsID.y %in% cisPotentialTargetsi)$EnsID)$EnsID)
-  #))
   
   #or all hits in selection
   a <- length(unique(
@@ -662,15 +547,8 @@ g2bi
 DEL_PCG_type_conc_PCG <- DEL_PCG_type
 DEL_PCG_type_conc_PCG$p <- unlist(results_list)[c(5,11,17)]
 DEL_PCG_type_conc_PCG$OR <- unlist(results_list)[c(6,12,18)]
-#write.csv(DEL_PCG_type_bi_PCG, "SVSMC_inducedDEL_DEP_DEneighboursame_conc.csv", row.names = F)
 
 p.adjust(DEL_PCG_type_conc_PCG$p)
-#@600kbp OR 1.5/0.05
-#@250kbp OR 1.3/0.105
-#@250kbp closest neighbour 1.53/0.0731
-#@250kbp closest 3 neighbours 1.4/0.07
-#                 5 neighbours 1.3/0.13
-#                 surrounding neighbours 1.67/0.020
 
 library(reshape2)
 DEL_PCG_type_plot <- unique(melt(DEL_PCG_type_conc_PCG[,1:3]))
@@ -706,11 +584,6 @@ for (i in (1:length(backgrounds_list))){
   #PCG genes
   d <- length(unique(filter(backgrounds_list[[i]], grepl("coding|TF|CC", GeneClassUpdate))$EnsID))
   
-  #prefiltered to closest neighbour etc
-  #c <- length(unique(filter(backgrounds_list[[i]], grepl("coding|TF|CC", GeneClassUpdate),
-  #                          EnsID %in% filter(closestNeighbourPCG, EnsID.y %in% cisPotentialTargets)$EnsID
-  #                          )$EnsID))
-  
   #all hits in PCGs
   c <- length(unique(filter(backgrounds_list[[i]], grepl("coding|TF|CC", GeneClassUpdate),
                             EnsID %in% filter(AllPCG_AllPCG_1, EnsID.y %in% cisPotentialTargets)$EnsID
@@ -719,10 +592,6 @@ for (i in (1:length(backgrounds_list))){
   #all selection lncs
   b <- length(unique(filter(backgrounds_list[[i]], grepl("fide|Lnc", GeneClassUpdate))$EnsID))
  
-  #prefiltered to closest neighbour etc
-  #a <- length(unique(filter(backgrounds_list[[i]], grepl("fide|Lnc", GeneClassUpdate),
-  #                          EnsID %in% filter(closestNeighbour, EnsID.y %in% cisPotentialTargets)$EnsID
-  #                          )$EnsID))
    
   #all hits in selection
   a <- length(unique(filter(backgrounds_list[[i]], grepl("fide|Lnc", GeneClassUpdate),
@@ -758,14 +627,9 @@ g2bi
 DEL_PCG_type_bi_PCG <- DEL_PCG_type
 DEL_PCG_type_bi_PCG$p <- unlist(results_list)[c(5,11,17)]
 DEL_PCG_type_bi_PCG$OR <- unlist(results_list)[c(6,12,18)]
-#write.csv(DEL_PCG_type_bi_PCG, "SVSMC_inducedDEL_DEP_DEneighboursame_conc.csv", row.names = F)
 
 p.adjust(DEL_PCG_type_bi_PCG$p)
-#@250kbp - all neighbours 1.3/0.188
-#@250kbp - closest neighbour 1.72/0.0598
-#@250kbp - closest 3 neighbours 1.6/0.051
-#          closest 5 neighbours 1.6/0.051
-#          surrounding neighbours 1.92/0.0127
+
 
 library(reshape2)
 DEL_PCG_type_plot <- unique(melt(DEL_PCG_type_bi_PCG[,1:3]))
@@ -842,354 +706,4 @@ p.adjust(DEL_PCG_type_bii_PCG$p)#ns
 #for both up and down
 grid.arrange(g2bi, g2bii, ncol = 2,
              left = textGrob("", gp = gpar(fontface = 'bold', fontsize = 12), rot = 90))
-
-#lack of significance induced, show the concordant graph instead
-
-
-#### (2D version) compare FC amongst groupings, 0-4hrs co-induced ####
-
-AllLNC_AllPCG_1 <- read.csv("\\\\cmvm.datastore.ed.ac.uk/cmvm/scs/groups/lncRNA_orthology/Timecourse/AllLNC_AllPCG_info_2026.csv", header = T)
-AllLNC_AllPCG_1 <- filter(AllLNC_AllPCG_1, DisLnc_PCG <250)
-
-#reminder: up and down FCs are different, don't combine effect on induced/repressed in same graph:
-summary(fpkm_allGDE_Upwithin_4$LogFC_0_4)
-summary(abs(fpkm_allGDE_Downwithin_4$LogFC_0_4))
-
-PCGDE_Upwithin_4 <- filter(fpkm_allGDE_Upwithin_4, EnsType == "protein_coding", grepl("coding|TF|CC", GeneClassUpdate))
-
-#now only co-induced pairs
-PCGDE_Upwithin_4$DEneighbourTypeIII <- "None"
-
-#identifies all PCG neighbour pairs with a change in 4hrs
-#option to insert a "closest neighbours" object
-CoInducedPCG_4hr <- filter(closestNeighbourPCG, EnsID %in% c(fpkm_allGDE_Upwithin_4$EnsID),
-                           EnsID.y %in% c(fpkm_allGDE_Upwithin_4$EnsID))
-
-CoInducedLncRNA_4hr <- filter(closestNeighbour, EnsID %in% c(fpkm_allGDE_Upwithin_4$EnsID),
-                              EnsID.y %in% c(fpkm_allGDE_Upwithin_4$EnsID))
-
-PCGDE_Upwithin_4$DEneighbourTypeIII <- "No PCG or CClncRNA neighbour"
-PCGDE_Upwithin_4$DEneighbourTypeIII[PCGDE_Upwithin_4$EnsID %in% c(CoInducedPCG_4hr$EnsID)] <- "PCG neighbour only"
-PCGDE_Upwithin_4$DEneighbourTypeIII[PCGDE_Upwithin_4$EnsID %in% CoInducedLncRNA_4hr$EnsID.y] <- "CCLncRNA neighbour"
-
-table(PCGDE_Upwithin_4$DEneighbourTypeIII)
-#@250kbp: 50 PCG coinduced with a CCLnc in 4hrs, 386 are coinduced with a PCG
-
-PCGDE_Upwithin_4$`Concordant with:` <- PCGDE_Upwithin_4$DEneighbourTypeIII
-
-ggplot(PCGDE_Upwithin_4) + aes(x = `Concordant with:`, y = abs(LogFC_0_4), color = `Concordant with:`) +
-  geom_quasirandom(alpha = 0.7) +
-  geom_boxplot(outlier.shape = NA, width = 0.3, alpha = 0.8) +
-  scale_color_manual(values = c(`CCLncRNA neighbour` = "olivedrab3", `PCG neighbour only` = "mediumorchid", 
-                               `No PCG or CClncRNA neighbour` = "grey")) +
-  #geom_jitter(width = 0.3, alpha = 0.1) +
-  #facet_wrap(~Cluster) +
-  scale_y_log10(breaks = c(0.3,1,3,10)) +
-  xlab("")+
-  theme_minimal() +
-  theme(axis.text.x = element_blank(),
-        strip.background = element_rect(),
-        axis.title.y = element_text(size=20),
-        legend.position = "bottom",
-        axis.text.y = element_text(size=18)) +
-  ylab("Log2FC (0-4hrs)")
-
-#anova first
-summary(aov(abs(LogFC_0_4) ~ DEneighbourTypeIII, data = PCGDE_Upwithin_4))
-TukeyHSD(aov(abs(LogFC_0_4) ~ DEneighbourTypeIII, data = PCGDE_Upwithin_4))
-#Dunnet's for a check too
-DescTools::DunnettTest(x = PCGDE_Upwithin_4$LogFC_0_4, PCGDE_Upwithin_4$DEneighbourTypeIII)#same
-
-kruskal.test(abs(LogFC_0_4) ~ DEneighbourTypeIII, data = PCGDE_Upwithin_4)#**
-#Dunn's post-hoc recommended for KW
-FSA::dunnTest(PCGDE_Upwithin_4$LogFC_0_4, PCGDE_Upwithin_4$`Concordant with:`, method = "bonferroni")
-
-summary(filter(PCGDE_Upwithin_4, DEneighbourTypeIII == "CCLncRNA")$LogFC_0_4)
-summary(filter(PCGDE_Upwithin_4, DEneighbourTypeIII == "None")$LogFC_0_4)
-summary(filter(PCGDE_Upwithin_4, DEneighbourTypeIII == "PCG_only")$LogFC_0_4)
-#establishes that no strong diffs in FC between these groups, not worth including
-
-
-#repressed 
-PCGDE_Downwithin_4 <- filter(fpkm_allGDE_Downwithin_4, grepl("coding|TF|CC", GeneClassUpdate))
-
-#now only co-Repressed pairs
-PCGDE_Downwithin_4$DEneighbourTypeIII <- "None"
-
-#identifies all PCG neighbour pairs with a change in 4hrs
-CoRepressedPCG_4hr <- filter(AllPCG_AllPCG_1, EnsID %in% c(fpkm_allGDE_Downwithin_4$EnsID),
-                             EnsID.y %in% c(fpkm_allGDE_Downwithin_4$EnsID))
-
-CoRepressedLncRNA_4hr <- filter(CoRegPairs_04_48_24_extended_naiveSame, EnsID %in% c(fpkm_allGDE_Downwithin_4$EnsID),
-                                EnsID.y %in% c(fpkm_allGDE_Downwithin_4$EnsID))
-
-PCGDE_Downwithin_4$DEneighbourTypeIII <- "No PCG or CClncRNA neighbour"
-PCGDE_Downwithin_4$DEneighbourTypeIII[PCGDE_Downwithin_4$EnsID %in% c(CoRepressedPCG_4hr$EnsID)] <- "PCG neighbour only"
-PCGDE_Downwithin_4$DEneighbourTypeIII[PCGDE_Downwithin_4$EnsID %in% CoRepressedLncRNA_4hr$EnsID.y] <- "CCLncRNA neighbour"
-
-table(PCGDE_Downwithin_4$DEneighbourTypeIII)#17 PCG coRepressed with a CCLnc in 4hrs, 164 are coRepressed with a PCG
-
-PCGDE_Downwithin_4$`Concordant with:` <- PCGDE_Downwithin_4$DEneighbourTypeIII
-
-PCGDE_Downwithin_4_assess <- filter(PCGDE_Downwithin_4, preadj_0_4 <0.05, LogFC_0_4 < -log2(1.5))
-
-ggplot(PCGDE_Downwithin_4_assess) + aes(x = `Concordant with:`, y = abs(LogFC_0_4), color = `Concordant with:`) +
-  geom_quasirandom(alpha = 0.7) +
-  geom_boxplot(outlier.shape = NA, width = 0.3, alpha = 0.8) +
-  scale_color_manual(values = c(`CCLncRNA neighbour` = "olivedrab3", `PCG neighbour only` = "mediumorchid", 
-                                `No PCG or CClncRNA neighbour` = "grey")) +
-  #geom_jitter(width = 0.3, alpha = 0.1) +
-  #facet_wrap(~Cluster) +
-  scale_y_log10(breaks = c(0.3,1,3,10)) +
-  xlab("")+
-  theme_minimal() +
-  theme(axis.text.x = element_blank(),
-        strip.background = element_rect(),
-        axis.title.y = element_text(size=20),
-        legend.position = "bottom",
-        axis.text.y = element_text(size=18)) +
-  ylab("Absolute Log2FC (0-4hrs)")
-
-#anova first - pool size bit on the edge for a parametric
-#summary(aov(abs(LogFC_0_4) ~ DEneighbourTypeIII, data = PCGDE_Downwithin_4_assess))# **
-kruskal.test(abs(LogFC_0_4) ~ DEneighbourTypeIII, data = PCGDE_Downwithin_4_assess)#**
-
-#parametric looks great, pool is just about ok in size, relatively normal dist too
-TukeyHSD(aov(abs(LogFC_0_4) ~ DEneighbourTypeIII, data = PCGDE_Downwithin_4_assess))
-
-#non-para for reference
-#Dunn's post-hoc recommended for KW, just about
-FSA::dunnTest(PCGDE_Downwithin_4_assess$LogFC_0_4, PCGDE_Downwithin_4_assess$`Concordant with:`, method = "bonferroni")
-
-summary(filter(PCGDE_Downwithin_4, DEneighbourTypeIII == "CCLncRNA")$LogFC_0_4)
-summary(filter(PCGDE_Downwithin_4, DEneighbourTypeIII == "None")$LogFC_0_4)
-summary(filter(PCGDE_Downwithin_4, DEneighbourTypeIII == "PCG_only")$LogFC_0_4)
-
-#same problem as above, driven by 4x HOXA?
-#take average value across CXCL and re-check stats (is it driven by just this locus?)
-PCGDE_Downwithin_4_LociAv <- PCGDE_Downwithin_4
-
-PCGDE_Downwithin_4_LociAv$EnsName[grepl("HOXA", PCGDE_Downwithin_4_LociAv$EnsName)] <- "HOXA_locus"
-PCGDE_Downwithin_4_LociAv$LogFC_0_4[grepl("HOXA", PCGDE_Downwithin_4_LociAv$EnsName)] <- min(PCGDE_Downwithin_4_LociAv$LogFC_0_4[grepl("HOXA", PCGDE_Downwithin_4_LociAv$EnsName)])
-
-PCGDE_Downwithin_4_LociAv <- unique(PCGDE_Downwithin_4_LociAv[,c(50,51,34,2)])
-
-ggplot(PCGDE_Downwithin_4_LociAv) + aes(x = `Concordant with:`, y = abs(LogFC_0_4), color = `Concordant with:`) +
-  geom_quasirandom(alpha = 0.7) +
-  geom_boxplot(outlier.shape = NA, width = 0.3, alpha = 0.8) +
-  scale_color_manual(values = c(`CCLncRNA neighbour` = "olivedrab3", `PCG neighbour only` = "mediumorchid", 
-                                `No PCG or CClncRNA neighbour` = "grey")) +
-  #geom_jitter(width = 0.3, alpha = 0.1) +
-  #facet_wrap(~Cluster) +
-  scale_y_log10(breaks = c(0.3,1,3,10)) +
-  xlab("")+
-  theme_minimal() +
-  theme(axis.text.x = element_blank(),
-        strip.background = element_rect(),
-        axis.title.y = element_text(size=20),
-        #legend.position = "bottom",
-        axis.text.y = element_text(size=18)) +
-  ylab("Absolute Log2FC (0-4hrs)")
-
-kruskal.test(abs(LogFC_0_4) ~ DEneighbourTypeIII, data = PCGDE_Downwithin_4_LociAv)#n.s.
-
-
-#### 0-8hr ####
-
-PCGDE_Upwithin_8 <- filter(fpkm_allGDE_Upwithin_8, grepl("coding|TF|CC", GeneClassUpdate))
-
-#now only co-induced pairs
-PCGDE_Upwithin_8$DEneighbourTypeIII <- "None"
-
-#identifies all PCG neighbour pairs with a change in 4hrs
-CoInducedPCG_8hr <- filter(AllPCG_AllPCG_1, EnsID %in% c(fpkm_allGDE_Upwithin_8$EnsID),
-                           EnsID.y %in% c(fpkm_allGDE_Upwithin_8$EnsID))
-
-CoInducedLncRNA_8hr <- filter(AllLNC_AllPCG_1, EnsID %in% c(fpkm_allGDE_Upwithin_8$EnsID),
-                              EnsID.y %in% c(fpkm_allGDE_Upwithin_8$EnsID))
-
-PCGDE_Upwithin_8$DEneighbourTypeIII <- "No PCG or CClncRNA neighbour"
-PCGDE_Upwithin_8$DEneighbourTypeIII[PCGDE_Upwithin_8$EnsID %in% c(CoInducedPCG_8hr$EnsID)] <- "PCG neighbour only"
-PCGDE_Upwithin_8$DEneighbourTypeIII[PCGDE_Upwithin_8$EnsID %in% CoInducedLncRNA_8hr$EnsID.y] <- "CCLncRNA neighbour"
-
-table(PCGDE_Upwithin_8$DEneighbourTypeIII)
-#@400kbp: 15 PCG coinduced with a lnc, 328 PCG only
-
-PCGDE_Upwithin_8$`Concordant with:` <- PCGDE_Upwithin_8$DEneighbourTypeIII
-
-PCGDE_Upwithin_8_assess <- filter(PCGDE_Upwithin_8, LogFC_0_8 >log2(1.5), preadj_0_8 < 0.05)
-
-ggplot(PCGDE_Upwithin_8_assess) + aes(x = `Concordant with:`, y = abs(LogFC_0_8), color = `Concordant with:`) +
-  geom_quasirandom(alpha = 0.7) +
-  geom_boxplot(outlier.shape = NA, width = 0.3, alpha = 0.8) +
-  scale_color_manual(values = c(`CCLncRNA neighbour` = "olivedrab3", `PCG neighbour only` = "mediumorchid", 
-                                `No PCG or CClncRNA neighbour` = "grey")) +
-  #geom_jitter(width = 0.3, alpha = 0.1) +
-  #facet_wrap(~Cluster) +
-  scale_y_log10(breaks = c(0.3,1,3,10)) +
-  xlab("")+
-  theme_minimal() +
-  theme(axis.text.x = element_blank(),
-        strip.background = element_rect(),
-        axis.title.y = element_text(size=20),
-        legend.position = "bottom",
-        axis.text.y = element_text(size=18)) +
-  ylab("Log2FC (0-8hrs)")
-
-kruskal.test(abs(LogFC_0_8) ~ DEneighbourTypeIII, data = PCGDE_Upwithin_8_assess)#*
-
-#non-para for reference
-#Dunn's post-hoc recommended for KW, ns
-FSA::dunnTest(PCGDE_Upwithin_8_assess$LogFC_0_8, PCGDE_Upwithin_8_assess$`Concordant with:`, method = "bonferroni")
-
-summary(filter(PCGDE_Upwithin_8, DEneighbourTypeIII == "CCLncRNA")$LogFC_0_8)
-summary(filter(PCGDE_Upwithin_8, DEneighbourTypeIII == "None")$LogFC_0_8)
-summary(filter(PCGDE_Upwithin_8, DEneighbourTypeIII == "PCG_only")$LogFC_0_8)
-
-
-
-#repressed 
-PCGDE_Downwithin_8 <- filter(fpkm_allGDE_Downwithin_8, grepl("coding|TF|CC", GeneClassUpdate))
-
-#now only co-Repressed pairs
-PCGDE_Downwithin_8$DEneighbourTypeIII <- "None"
-
-#identifies all PCG neighbour pairs with a change in 4hrs
-CoRepressedPCG_8hr <- filter(AllPCG_AllPCG_1, EnsID %in% c(fpkm_allGDE_Downwithin_8$EnsID),
-                             EnsID.y %in% c(fpkm_allGDE_Downwithin_8$EnsID))
-
-CoRepressedLncRNA_8hr <- filter(CoRegPairs_04_48_24_extended_naiveSame, EnsID %in% c(fpkm_allGDE_Downwithin_8$EnsID),
-                                EnsID.y %in% c(fpkm_allGDE_Downwithin_8$EnsID))
-
-PCGDE_Downwithin_8$DEneighbourTypeIII <- "No PCG or CClncRNA neighbour"
-PCGDE_Downwithin_8$DEneighbourTypeIII[PCGDE_Downwithin_8$EnsID %in% c(CoRepressedPCG_8hr$EnsID)] <- "PCG neighbour only"
-PCGDE_Downwithin_8$DEneighbourTypeIII[PCGDE_Downwithin_8$EnsID %in% CoRepressedLncRNA_8hr$EnsID.y] <- "CCLncRNA neighbour"
-
-table(PCGDE_Downwithin_8$DEneighbourTypeIII)#16 PCG coRepressed with a CCLnc in 8hrs
-
-PCGDE_Downwithin_8$`Concordant with:` <- PCGDE_Downwithin_8$DEneighbourTypeIII
-
-PCGDE_Downwithin_8_assess <- filter(PCGDE_Downwithin_8, preadj_0_8 <0.05, LogFC_0_8 < -log2(1.5))
-
-ggplot(PCGDE_Downwithin_8_assess) + aes(x = `Concordant with:`, y = abs(LogFC_0_8), color = `Concordant with:`) +
-  geom_quasirandom(alpha = 1) +
-  #geom_boxplot(outlier.shape = NA, width = 0.3, alpha = 0.8) +
-  scale_color_manual(values = c(`CCLncRNA neighbour` = "olivedrab3", `PCG neighbour only` = "mediumorchid", 
-                                `No PCG or CClncRNA neighbour` = "grey")) +
-  #geom_jitter(width = 0.3, alpha = 0.1) +
-  #facet_wrap(~Cluster) +
-  scale_y_log10(breaks = c(0.3,1,3,10)) +
-  xlab("")+
-  theme_minimal() +
-  theme(axis.text.x = element_blank(),
-        strip.background = element_rect(),
-        axis.title.y = element_text(size=20),
-        legend.position = "bottom",
-        legend.text = element_text(size=15),
-        axis.text.y = element_text(size=18)) +
-  ylab("Absolute Log2FC (0-8hrs)")
-
-#anova first - pool size bit on the edge for a parametric
-kruskal.test(abs(LogFC_0_8) ~ DEneighbourTypeIII, data = PCGDE_Downwithin_8_assess)#ns
-
-summary(filter(PCGDE_Downwithin_8, DEneighbourTypeIII == "CCLncRNA")$LogFC_0_8)
-summary(filter(PCGDE_Downwithin_8, DEneighbourTypeIII == "None")$LogFC_0_8)
-summary(filter(PCGDE_Downwithin_8, DEneighbourTypeIII == "PCG_only")$LogFC_0_8)
-
-
-#### 0-24hr ####
-
-PCGDE_Upwithin_24 <- filter(fpkm_allGDE_Upwithin_24, grepl("coding|TF|CC", GeneClassUpdate))
-
-#now only co-induced pairs
-PCGDE_Upwithin_24$DEneighbourTypeIII <- "None"
-
-#identifies all PCG neighbour pairs with a change in 4hrs
-CoInducedPCG_24hr <- filter(AllPCG_AllPCG_1, EnsID %in% c(fpkm_allGDE_Upwithin_24$EnsID),
-                            EnsID.y %in% c(fpkm_allGDE_Upwithin_24$EnsID))
-
-CoInducedLncRNA_24hr <- filter(AllLNC_AllPCG_1, EnsID %in% c(fpkm_allGDE_Upwithin_24$EnsID),
-                               EnsID.y %in% c(fpkm_allGDE_Upwithin_24$EnsID))
-
-PCGDE_Upwithin_24$DEneighbourTypeIII <- "No PCG or CClncRNA neighbour"
-PCGDE_Upwithin_24$DEneighbourTypeIII[PCGDE_Upwithin_24$EnsID %in% c(CoInducedPCG_24hr$EnsID)] <- "PCG neighbour only"
-PCGDE_Upwithin_24$DEneighbourTypeIII[PCGDE_Upwithin_24$EnsID %in% CoInducedLncRNA_24hr$EnsID.y] <- "CCLncRNA neighbour"
-
-table(PCGDE_Upwithin_24$DEneighbourTypeIII)
-#@400kbp: 5 PCG coinduced with a lnc, 178 PCG only
-
-PCGDE_Upwithin_24$`Concordant with:` <- PCGDE_Upwithin_24$DEneighbourTypeIII
-
-PCGDE_Upwithin_24_assess <- filter(PCGDE_Upwithin_24, LogFC_0_24 >log2(1.5), preadj_0_24 < 0.05)
-
-ggplot(PCGDE_Upwithin_24_assess) + aes(x = `Concordant with:`, y = abs(LogFC_0_24), color = `Concordant with:`) +
-  geom_quasirandom(alpha = 0.7) +
-  geom_boxplot(outlier.shape = NA, width = 0.3, alpha = 0.8) +
-  scale_color_manual(values = c(`CCLncRNA neighbour` = "olivedrab3", `PCG neighbour only` = "mediumorchid", 
-                                `No PCG or CClncRNA neighbour` = "grey")) +
-  #geom_jitter(width = 0.3, alpha = 0.1) +
-  #facet_wrap(~Cluster) +
-  scale_y_log10(breaks = c(0.3,1,3,10)) +
-  xlab("")+
-  theme_minimal() +
-  theme(axis.text.x = element_blank(),
-        strip.background = element_rect(),
-        axis.title.y = element_text(size=20),
-        legend.position = "bottom",
-        axis.text.y = element_text(size=18)) +
-  ylab("Log2FC (0-24hrs)")
-
-kruskal.test(abs(LogFC_0_24) ~ DEneighbourTypeIII, data = PCGDE_Upwithin_24_assess)#ns
-
-summary(filter(PCGDE_Upwithin_24, DEneighbourTypeIII == "CCLncRNA")$LogFC_0_24)
-summary(filter(PCGDE_Upwithin_24, DEneighbourTypeIII == "None")$LogFC_0_24)
-summary(filter(PCGDE_Upwithin_24, DEneighbourTypeIII == "PCG_only")$LogFC_0_24)
-
-
-
-#repressed 
-PCGDE_Downwithin_24 <- filter(fpkm_allGDE_Downwithin_24, grepl("coding|TF|CC", GeneClassUpdate))
-
-#now only co-Repressed pairs
-PCGDE_Downwithin_24$DEneighbourTypeIII <- "None"
-
-#identifies all PCG neighbour pairs with a change in 4hrs
-CoRepressedPCG_24hr <- filter(AllPCG_AllPCG_1, EnsID %in% c(fpkm_allGDE_Downwithin_24$EnsID),
-                              EnsID.y %in% c(fpkm_allGDE_Downwithin_24$EnsID))
-
-CoRepressedLncRNA_24hr <- filter(CoRegPairs_04_48_24_extended_naiveSame, EnsID %in% c(fpkm_allGDE_Downwithin_24$EnsID),
-                                 EnsID.y %in% c(fpkm_allGDE_Downwithin_24$EnsID))
-
-PCGDE_Downwithin_24$DEneighbourTypeIII <- "No PCG or CClncRNA neighbour"
-PCGDE_Downwithin_24$DEneighbourTypeIII[PCGDE_Downwithin_24$EnsID %in% c(CoRepressedPCG_24hr$EnsID)] <- "PCG neighbour only"
-PCGDE_Downwithin_24$DEneighbourTypeIII[PCGDE_Downwithin_24$EnsID %in% CoRepressedLncRNA_24hr$EnsID.y] <- "CCLncRNA neighbour"
-
-table(PCGDE_Downwithin_24$DEneighbourTypeIII)#14 PCG coRepressed with a CCLnc in 24hrs
-
-PCGDE_Downwithin_24$`Concordant with:` <- PCGDE_Downwithin_24$DEneighbourTypeIII
-
-PCGDE_Downwithin_24_assess <- filter(PCGDE_Downwithin_24, preadj_0_24 <0.05, LogFC_0_24 < -log2(1.5))
-
-ggplot(PCGDE_Downwithin_24_assess) + aes(x = `Concordant with:`, y = abs(LogFC_0_24), color = `Concordant with:`) +
-  geom_quasirandom(alpha = 0.7) +
-  geom_boxplot(outlier.shape = NA, width = 0.3, alpha = 0.8) +
-  scale_color_manual(values = c(`CCLncRNA neighbour` = "olivedrab3", `PCG neighbour only` = "mediumorchid", 
-                                `No PCG or CClncRNA neighbour` = "grey")) +
-  #geom_jitter(width = 0.3, alpha = 0.1) +
-  #facet_wrap(~Cluster) +
-  scale_y_log10(breaks = c(0.3,1,3,10)) +
-  xlab("")+
-  theme_minimal() +
-  theme(axis.text.x = element_blank(),
-        strip.background = element_rect(),
-        axis.title.y = element_text(size=20),
-        legend.position = "bottom",
-        axis.text.y = element_text(size=18)) +
-  ylab("Absolute Log2FC (0-24hrs)")
-
-kruskal.test(abs(LogFC_0_24) ~ DEneighbourTypeIII, data = PCGDE_Downwithin_24_assess)#**
-
-summary(filter(PCGDE_Downwithin_24, DEneighbourTypeIII == "CCLncRNA")$LogFC_0_24)
-summary(filter(PCGDE_Downwithin_24, DEneighbourTypeIII == "None")$LogFC_0_24)
-summary(filter(PCGDE_Downwithin_24, DEneighbourTypeIII == "PCG_only")$LogFC_0_24)
 
