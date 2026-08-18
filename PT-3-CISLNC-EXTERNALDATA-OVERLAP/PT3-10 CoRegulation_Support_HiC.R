@@ -75,14 +75,7 @@ length(unique(allGB$MSTRG_Tx_ID))#42511 TSS total (multiple TSS per gene now)
 
 #### addtl. pairs from caSMC loops - convert Zhao et al. to hg38 ####
 
-#2D neighbours found so far - simple 250kbp either side of the lnc TSS
-#what about 3D? could be some looping over greater distances
-#TADs are a bit non-specific, loops better
-#aim is to be stringent so go 4 loops
-
 #Quanyi used 5kb resolution to get loops from FitHiC
-
-#And highly stringent p< 10-10
 
 #import of FitHiC loops across pooled samples
 caSMC_Zhao_Loops1 <- read.delim("\\\\cmvm.datastore.ed.ac.uk/cmvm/scs/groups/Baker-lab/BioinfGroupResources/Candidate gene selection/epigenetics/enhancers_superenhancers/CASMC ATAC HiC Zhao 2020/GSM4212721_FitHiC_allloops.txt",
@@ -116,7 +109,6 @@ trialiv$dist_hg19 <- (trialiv$fragmentMid2.y - trialiv$fragmentMid1.y)/1000
 ggplot(trialiv) + aes(x = dist_hg38, y = dist_hg19) +
   geom_point(alpha = 0.2)
 
-#does it matter? the hg19 distances seem capped at 2000kbp so anything bigger than that probs a liftOver artefact
 summary(trialiv$dist_hg19) #330 median
 summary(trialiv$dist_hg38) #325 median
 
@@ -168,7 +160,6 @@ trialiv$dist_hg19 <- (trialiv$centroid2 - trialiv$centroid1)/1000
 ggplot(trialiv) + aes(x = dist_hg38, y = dist_hg19) +
   geom_point(alpha = 0.2)
 
-#does it matter? the hg19 distances seem capped at 2000kbp so anything bigger than that probs a fake
 summary(trialiv$dist_hg19) #295 median
 summary(trialiv$dist_hg38) #292.5 median
 
@@ -178,16 +169,6 @@ trialiv <- filter(trialiv, dist_hg38 == dist_hg19)
 caSMC_Zhao_Loops2_filt <- filter(trialiii, locID_hg19 %in% trialiv$locID_hg19)
 
 #much less HiCCUPs (~11k) than FitHiC (~100k)
-
-#### HiC validation routes ####
-
-#validation routes
-#a) overlap with ChIA-loops in their publication (DONE in ZHAO paper)
-#ai) overlap with ChIA-loops from HUVEC TNF in Fanucchi (IPL-IL6 AC002480.3 and IL6?)
-#b) presence of any enrichment of looped pairs amongst DEL-DEPCG vs EL-EPCG in different distance bins
-#bi) presence of any enrichment of looped pairs amongst DEG-DEG vs EG-G in different distance bins
-#c) presence of previously identified cis lncRNA PCG links (IL6?)
-#d) presence of previously identified enhancer-PCG links for some key caSMC genes (literature? GeneHancer? snATACseq later?)
 
 
 #### identify lncRNA contact sites ####
@@ -434,48 +415,6 @@ Loop2Frag2overlaps$lncLocContact_perc[Loop2Frag2overlaps$str == "-" & Loop2Frag2
 
 ggplot(Loop2Frag2overlaps) + aes(x = lncLocContact_perc) +
   geom_histogram()
-#as with FitHiC, the frag 2's have less of a promoter bias and maintain the TES
-#some interesting feature here, frag2 is always 3' on sense DNA strand, lncs appear to be ending at frag2 sites on the sense strand specifically
-#unclear why at present
-
-
-#do FitHiC lower p val contacts have similar look to HiCCUP?
-#dim(filter(Loop1Frag1overlaps, q.value < 0.0000001))
-#143/940
-#top15%
-#ggplot(filter(Loop1Frag1overlaps, q.value < 0.0000001)) + aes(x = lncLocContact_perc) +
-#  geom_histogram()
-
-#dim(filter(Loop1Frag2overlaps, q.value < 0.0000001))
-#216/1149 #top 19%
-#ggplot(filter(Loop1Frag2overlaps, q.value < 0.0000001)) + aes(x = lncLocContact_perc) +
-#  geom_histogram()
-
-
-#unique FitHiC contacted lncRNAs of lower significance?
-trial <- Loop1Frag1overlaps
-colnames(trial)[1] <- "locID_hg19"
-triali <- Loop1Frag2overlaps
-colnames(triali)[1] <- "locID_hg19"
-Loop1bothFragoverlaps <- rbind(trial[,c(1:3,8:9)], triali[,c(1:3,8:9)])
-
-Loop1bothFragoverlaps$Method <- "FitHiC_only"
-Loop1bothFragoverlaps$Method[Loop1bothFragoverlaps$EnsID %in% HiCCUP_LNCS] <- "Both"
-
-library(ggbeeswarm)
-ggplot(Loop1bothFragoverlaps) + aes(x = Method, y = q.value+0.000001) +
-  geom_boxplot() +
-  scale_y_log10()
-
-
-#### ambiguous contacts, not promoter or TES, overlaps another gene ####
-
-#don't think this matters, it doesn't change the fact that the lncRNA is brought into close contact with a PCG
-
-#we will follow up by looking for shared reg
-
-#conversely for eQTL, it does matter, no associations to co-regulation in SVSMC unless excluded these eQTLs 
-
 
 
 #### HiC find lnc-PCG connected pairs ####
@@ -700,7 +639,7 @@ trial <- Loop1_LNC_PCG[,c(3,15,16)]
 triali <- Loop2_LNC_PCG[,c(3,19,20)]
 
 Loop_LNC_PCG <- unique(rbind(trial, triali))
-#not considering non-connected lncs (for now? they could link to other enhancer lncs)
+#not considering non-connected lncs (for now)
 Loop_LNC_PCG <- filter(Loop_LNC_PCG, !is.na(pairs))
 
 Loop_LNC_PCG$loopMethod <- "FitHiC"
@@ -792,17 +731,6 @@ length(unique(AllLNC_AllPCG_2d3d$EnsID.y)) #5362
 #write.csv(AllLNC_AllPCG_2d3d, "AllLNC_AllPCG_2d3d_2026.csv", row.names = F)
 
 
-#600kbp Targets for Charles - move to after next section eventually (next section establishes that diminishing returns after 500kbp)
-#write.csv(unique(filter(AllLNC_AllPCG_2d3d, AbsDistLnc_PCG < 600 | !loopMethod == "Neither")$EnsID.y)),
-#                                                           "PCGs_4_Charles_Dec2025.csv", row.names = F)
-
-#double check not missing any - delete once above moved to next section
-#charlesList <- read.csv("PCGs_4_Charles_Dec2025.csv")
-#length(unique(filter(AllLNC_AllPCG_2d3d, AbsDistLnc_PCG < 600 | !loopMethod == "Neither")$EnsID.y))
-#sum(charlesList$x %in% gsub("\\.[0-9]*", "", 
-#                            unique(filter(AllLNC_AllPCG_2d3d, AbsDistLnc_PCG < 600 | !loopMethod == "Neither")$EnsID.y)))
-
-#
 #### HiC validation 2 - set-up: pick out CClncRNA targets vs. other neighbours, compare to DEL-DEP ####
 
 #all 2d pairs in 1mbp, plus any HiC up to 1Mbp
@@ -856,8 +784,6 @@ allGB_PCGs_GR$MSTRG_Tx_ID <- allGB_PCGs_GRpromoters$MSTRG_Tx_ID
 
 #import 2d pairs:
 AllLNC_AllPCG_1 <- read.csv("\\\\cmvm.datastore.ed.ac.uk/cmvm/scs/groups/lncRNA_orthology/Timecourse/AllLNC_AllPCG_info_2026.csv", header = T)
-#AllLNC_AllPCG_1 <- filter(AllLNC_AllPCG_1, AbsDistLnc_PCG <800) #set pairs to test
-#alter above to try at diff thresholds (250, 400, 500, 600, 800 etc)
 
 #remove any which are too close for HiC (expecting small minority)
 #flattens all tx (+ promoter regions) in all pairs into a single range
@@ -885,47 +811,21 @@ AllLNC_AllPCG_1_ <- filter(AllLNC_AllPCG_1, AbsDistLnc_PCG <1000) #can come back
 
 AllLNC_AllPCG_HiCTest <- filter(AllLNC_AllPCG_1_, pair_range >=15000)
 
-#2d/naive version - for paper - take only the pairs found in the set distance
-#(should be no diff from this line)
 AllLNC_AllPCG_HiCTest_naive <- filter(AllLNC_AllPCG_HiCTest, pairs %in% AllLNC_AllPCG_1_$pairs)
 #total pairs
 dim(filter(AllLNC_AllPCG_HiCTest_naive))
 #with HiC
 dim(filter(AllLNC_AllPCG_HiCTest_naive, pairs %in% filter(AllLNC_AllPCG_2d3d, !loopMethod == "Neither")$pairs))
 266/8400 #1mbp
-254/6896 #800kbp
-246/6147 #700kbp
-240/5359 #600kbp
-233/4535 #500kbp
-224/3778 #400kbp
-186/2526 #250kbp
 
 #with closer pairs, a higher % of HiC loop support is found
-
-#non-overlapping buckets
-AllLNC_AllPCG_1_ <- filter(AllLNC_AllPCG_1, AbsDistLnc_PCG <100) #can come back later and this line to do more filtering if needed
-AllLNC_AllPCG_1_ <- filter(AllLNC_AllPCG_1, AbsDistLnc_PCG >=100, AbsDistLnc_PCG <250) #can come back later and this line to do more filtering if needed
-AllLNC_AllPCG_1_ <- filter(AllLNC_AllPCG_1, AbsDistLnc_PCG >=250, AbsDistLnc_PCG <400) #can come back later and this line to do more filtering if needed
-AllLNC_AllPCG_1_ <- filter(AllLNC_AllPCG_1, AbsDistLnc_PCG >=400, AbsDistLnc_PCG <600) #can come back later and this line to do more filtering if needed
-AllLNC_AllPCG_1_ <- filter(AllLNC_AllPCG_1, AbsDistLnc_PCG >=600, AbsDistLnc_PCG <800) #can come back later and this line to do more filtering if needed
-AllLNC_AllPCG_1_ <- filter(AllLNC_AllPCG_1, AbsDistLnc_PCG >=800, AbsDistLnc_PCG <1000) #can come back later and this line to do more filtering if needed
 
 AllLNC_AllPCG_HiCTest <- filter(AllLNC_AllPCG_1_, pair_range >=15000)
 
 #2d/naive version - for paper - take only the pairs found in the set distance
 #(should be no diff from this line)
 AllLNC_AllPCG_HiCTest_naive <- filter(AllLNC_AllPCG_HiCTest, pairs %in% AllLNC_AllPCG_1_$pairs)
-#total pairs
-dim(filter(AllLNC_AllPCG_HiCTest_naive))
-#with HiC
-dim(filter(AllLNC_AllPCG_HiCTest_naive, pairs %in% filter(AllLNC_AllPCG_2d3d, !loopMethod == "Neither")$pairs))
-107/1162#100, b1
-79/1364#100-250, b2
-38/1252#250-400, b3
-16/1581#400-600, b4
-14/1537#600-800, b5
-14/1537#600-800, b5
-12/1504#800-1000, b6
+
 
 #
 #### HiC validation 2 - all timeframes together ####
@@ -958,10 +858,6 @@ b <- dim(filter(AllLNC_AllPCG_HiCTest_naive, pairs %in% CoRegPairs_04_48_24_exte
 a <- dim(filter(AllLNC_AllPCG_HiCTest_naive, pairs %in% CoRegPairs_04_48_24_extended_naive$pairs,
                 pairs %in% filter(AllLNC_AllPCG_2d3d, !loopMethod == "Neither")$pairs))[1]
 44/996#1000
-42/816#800
-39/628#600
-37/520#500
-28/277#250kbp
 
 #enrichment of HiC connections amongst lnc co-reg pairs?
 
@@ -971,16 +867,6 @@ d <- dim(filter(AllLNC_AllPCG_HiCTest_naive, EnsID %in% CoRegPairs_04_48_24_exte
 c <- dim(filter(AllLNC_AllPCG_HiCTest_naive, EnsID %in% CoRegPairs_04_48_24_extended_naive$EnsID,
                 pairs %in% filter(AllLNC_AllPCG_2d3d, !loopMethod == "Neither")$pairs))[1]
 98/2844#1000
-92/2293#800
-82/1704#600
-76/1422#500
-49/700#250
-
-#1000 OR 1.53/0.02 - 4.4/3.4
-#800 OR 1.55/0.027 - 5.1/4.0
-#600 OR 1.6/0.027 - 6.2/4.8
-#500 OR 1.7/0.017 - 7.1/5.3
-#250 OR 2.15/0.008 - 10.1/7.0
 fisher.test(data.frame("cisLnc" = c(a, b-a),
                        "Not"   = c(c-a, d-c-(b-a))), alternative = "greater")
 
@@ -995,26 +881,13 @@ ai <- dim(filter(AllLNC_AllPCG_HiCTest_naive,
                  !EnsID %in% fpkm_allGDE$EnsID, EnsID.y %in% fpkm_allGDE$EnsID,
                  pairs %in% filter(AllLNC_AllPCG_2d3d, !loopMethod == "Neither")$pairs))[1]
 65/2110#1000
-64/1745#800
-59/1363#600
-58/1139#500
-51/616#250
 
 di <- dim(filter(AllLNC_AllPCG_HiCTest_naive, !EnsID %in% fpkm_allGDE$EnsID))[1] #1380 non-DE lnc-PCG pairs
 #with HiC
 ci <- dim(filter(AllLNC_AllPCG_HiCTest_naive, !EnsID %in% fpkm_allGDE$EnsID,
                  pairs %in% filter(AllLNC_AllPCG_2d3d, !loopMethod == "Neither")$pairs))[1]
 151/5371#1000
-147/4424#800
-139/3462#600
-137/2932#500
-112/1659#250
 
-#1000 1.17/ns - 3.1/2.8
-#800 1.19/ns - 3.7/3.3
-#600 1.14/ns - 4.3/4.0
-#500 1.16/ns - 5.1/4.7
-#250 1.45/0.04  - 8.2/6.8
 fisher.test(data.frame("cisLnc" = c(ai, bi-ai),
                        "Not"   = c(ci-ai, di-ci-(bi-ai))), alternative = "greater")
 
@@ -1030,10 +903,6 @@ CoRegPairs_04_48_24_extended_naiveSame <- filter(AllLNC_AllPCG_1,
                                                    (EnsID %in% c(fpkm_allGDE_Upwithin_24$EnsID, 
                                                                  fpkm_allGDE_Downwithin_24$EnsID) & EnsID.y %in% c(fpkm_allGDE_Upwithin_24$EnsID, fpkm_allGDE_Downwithin_24$EnsID))
                                                  )
-#470 1000
-#389 800
-#316 600
-#268 500
 
 #enrichment irrespective of time
 bii <- dim(filter(AllLNC_AllPCG_HiCTest_naive, pairs %in% CoRegPairs_04_48_24_extended_naiveSame$pairs))[1]
@@ -1041,10 +910,6 @@ bii <- dim(filter(AllLNC_AllPCG_HiCTest_naive, pairs %in% CoRegPairs_04_48_24_ex
 aii <- dim(filter(AllLNC_AllPCG_HiCTest_naive, pairs %in% CoRegPairs_04_48_24_extended_naiveSame$pairs,
                   pairs %in% filter(AllLNC_AllPCG_2d3d, !loopMethod == "Neither")$pairs))[1]
 28/466#1000
-28/385#800
-26/312#600
-24/264#500
-17/149#250
 
 #all cclnc neighbour pairs:
 dii <- dim(filter(AllLNC_AllPCG_HiCTest_naive, EnsID %in% CoRegPairs_04_48_24_extended_naiveSame$EnsID))[1]
@@ -1052,47 +917,9 @@ dii <- dim(filter(AllLNC_AllPCG_HiCTest_naive, EnsID %in% CoRegPairs_04_48_24_ex
 cii <- dim(filter(AllLNC_AllPCG_HiCTest_naive, EnsID %in% CoRegPairs_04_48_24_extended_naiveSame$EnsID,
                   pairs %in% filter(AllLNC_AllPCG_2d3d, !loopMethod == "Neither")$pairs))[1]
 86/2689#1000
-81/2079#800
-73/1542#600
-65/1256#500
-36/538#250 
 
-#800 2.4/0.0003 - 7.3/3.9
-#600 2.3/0.001 - 8.3/4.7
-#500 2.3/0.002 - 9.1/5.2
-#250 2.5/0.008 - 11.4/6.7
 fisher.test(data.frame("cisLnc" = c(aii, bii-aii),
                        "Not"   = c(cii-aii, dii-cii-(bii-aii))), alternative = "greater")
-
-#plot same/later cclncs, same cclncs and non-DE lncs together:
-DEL_PCG_type <- data.frame("co-regulated neighbour" = c(a/b*100, aii/bii*100, ai/bi*100), 
-                           "other neighbour" = c(c/d*100, cii/dii*100, ci/di*100))
-DEL_PCG_type$RegulationBegins <- as.factor(c("CClncRNAs\n(Same/Later)", "CClncRNAs\n(Same)", "Non-DE lncRNAs"))
-#DEL_PCG_type$NoDEL <- c(a, ai)
-
-DEL_PCG_type <- melt(DEL_PCG_type)
-
-DEL_PCG_type$variable <- gsub("\\.", " ", DEL_PCG_type$variable)
-#makes more sense like this:
-colnames(DEL_PCG_type)[2] <- "LncRNA paired to:"
-
-DEL_PCG_type$RegulationBegins <- factor(DEL_PCG_type$RegulationBegins)
-DEL_PCG_type$RegulationBegins <- factor(DEL_PCG_type$RegulationBegins, levels = levels(DEL_PCG_type$RegulationBegins)[c(3,1,2)])
-
-DEL_PCG_type$`LncRNA paired to:` <- as.factor(DEL_PCG_type$`LncRNA paired to:`)
-DEL_PCG_type$`LncRNA paired to:` <- factor(DEL_PCG_type$`LncRNA paired to:`, 
-                                           levels = levels(DEL_PCG_type$`LncRNA paired to:`)[c(2,1)])
-
-ggplot(DEL_PCG_type) + aes(y = RegulationBegins, fill = `LncRNA paired to:`, x = value) +
-  geom_bar(stat= "identity", position = position_dodge(width = 0.9)) +
-  scale_fill_manual(values = c(`co regulated neighbour` = "mediumorchid",`other neighbour` = "grey30")) +
-  #geom_label(aes(x = RegulationBegins, y = DEL_pairs, label = NoDEL), size = 3) +  
-  ylab("") +   xlab("\n% HiC-looped") +
-  theme_minimal() +
-  theme(text = element_text(size=20))# + Seurat::RotatedAxis()
-#probs don't need this if including a per timeframe analysis
-
-#this is overall, likely hides effects per timeframe phase
 
 
 #### HiC validation 2 - early timeframe plots ####
@@ -1148,42 +975,9 @@ for (i in 1:length(DEG_cluster)){
 }
 
 names(LoopFish_SameDelayedPairs) <- c("Up4", "Up8", "Up24", "Down4", "Down8", "Down24", "Either4", "Either8", "Either24")
-#LoopFish_SameDelayedPairs_df_b1 <- bind_rows(LoopFish_SameDelayedPairs, .id = "LncTiming")
-#LoopFish_SameDelayedPairs_df_b2 <- bind_rows(LoopFish_SameDelayedPairs, .id = "LncTiming")
-#LoopFish_SameDelayedPairs_df_b3 <- bind_rows(LoopFish_SameDelayedPairs, .id = "LncTiming")
-#LoopFish_SameDelayedPairs_df_b4 <- bind_rows(LoopFish_SameDelayedPairs, .id = "LncTiming")
-#LoopFish_SameDelayedPairs_df_b5 <- bind_rows(LoopFish_SameDelayedPairs, .id = "LncTiming")
-#LoopFish_SameDelayedPairs_df_b6 <- bind_rows(LoopFish_SameDelayedPairs, .id = "LncTiming")
-
-trial <- rbind(LoopFish_SameDelayedPairs_df_b1[1,],
-               LoopFish_SameDelayedPairs_df_b2[1,],
-               LoopFish_SameDelayedPairs_df_b3[1,],
-               LoopFish_SameDelayedPairs_df_b4[1,],
-               LoopFish_SameDelayedPairs_df_b5[1,],
-               LoopFish_SameDelayedPairs_df_b6[1,])
-trial$dist <- c(100,250,400,600,800,1000)
 
 LoopFish_SameDelayedPairs_df_1000 <- bind_rows(LoopFish_SameDelayedPairs, .id = "LncTiming")
-#LoopFish_SameDelayedPairs_df_800 <- bind_rows(LoopFish_SameDelayedPairs, .id = "LncTiming")
-#LoopFish_SameDelayedPairs_df_700 <- bind_rows(LoopFish_SameDelayedPairs, .id = "LncTiming")
-#LoopFish_SameDelayedPairs_df_600 <- bind_rows(LoopFish_SameDelayedPairs, .id = "LncTiming")
-#LoopFish_SameDelayedPairs_df_500 <- bind_rows(LoopFish_SameDelayedPairs, .id = "LncTiming")
-#LoopFish_SameDelayedPairs_df_400 <- bind_rows(LoopFish_SameDelayedPairs, .id = "LncTiming")
-LoopFish_SameDelayedPairs_df_250 <- bind_rows(LoopFish_SameDelayedPairs, .id = "LncTiming")
 
-#summary over all distances:
-#trial <- rbind(LoopFish_SameDelayedPairs_df_1000[1,],
-#               LoopFish_SameDelayedPairs_df_800[1,],
-#               LoopFish_SameDelayedPairs_df_700[1,],
-#               LoopFish_SameDelayedPairs_df_600[1,],
-#               LoopFish_SameDelayedPairs_df_500[1,],
-#               LoopFish_SameDelayedPairs_df_400[1,],
-#               LoopFish_SameDelayedPairs_df_250[1,],
-#               LoopFish_SameDelayedPairs_df_b1[1,])
-#trial$dist <- c(1000,800,700,600,500,400,250,100)
-
-#only 4hr induced has some effect
-#250 strongest, but others fairly similar
 
 #same timeframe equivalent:
 CoRegPairs_04_48_24_extended_naiveSame <- filter(AllLNC_AllPCG_1_,
@@ -1223,107 +1017,9 @@ for (i in 1:length(DEG_cluster)){
 }
 
 names(LoopFish_SamePairs) <- c("Up4", "Up8", "Up24", "Down4", "Down8", "Down24", "Either4", "Either8", "Either24")
-#LoopFish_SamePairs_df_b1 <- bind_rows(LoopFish_SamePairs, .id = "LncTiming")
-#LoopFish_SamePairs_df_b2 <- bind_rows(LoopFish_SamePairs, .id = "LncTiming")
-#LoopFish_SamePairs_df_b3 <- bind_rows(LoopFish_SamePairs, .id = "LncTiming")
-#LoopFish_SamePairs_df_b4 <- bind_rows(LoopFish_SamePairs, .id = "LncTiming")
-#LoopFish_SamePairs_df_b5 <- bind_rows(LoopFish_SamePairs, .id = "LncTiming")
-#LoopFish_SamePairs_df_b6 <- bind_rows(LoopFish_SamePairs, .id = "LncTiming")
-
-#summary over all distances:
-#triali <- rbind(LoopFish_SamePairs_df_b1[1,],
-#                LoopFish_SamePairs_df_b2[1,],
-#                LoopFish_SamePairs_df_b3[1,],
-#                LoopFish_SamePairs_df_b4[1,],
-#                LoopFish_SamePairs_df_b5[1,],
-#                LoopFish_SamePairs_df_b6[1,])
-#triali$dist <- c(100,250,400,600,800,1000)
 
 LoopFish_SamePairs_df_1000 <- bind_rows(LoopFish_SamePairs, .id = "LncTiming")
-#LoopFish_SamePairs_df_800 <- bind_rows(LoopFish_SamePairs, .id = "LncTiming")
-#LoopFish_SamePairs_df_700 <- bind_rows(LoopFish_SamePairs, .id = "LncTiming")
-#LoopFish_SamePairs_df_600 <- bind_rows(LoopFish_SamePairs, .id = "LncTiming")
-#LoopFish_SamePairs_df_500 <- bind_rows(LoopFish_SamePairs, .id = "LncTiming")
-#LoopFish_SamePairs_df_400 <- bind_rows(LoopFish_SamePairs, .id = "LncTiming")
-LoopFish_SamePairs_df_250 <- bind_rows(LoopFish_SamePairs, .id = "LncTiming")
 
-#summary over all distances:
-#triali <- rbind(LoopFish_SamePairs_df_1000[1,],
-#                LoopFish_SamePairs_df_800[1,],
-#                LoopFish_SamePairs_df_700[1,],
-#                LoopFish_SamePairs_df_600[1,],
-#                LoopFish_SamePairs_df_500[1,],
-#                LoopFish_SamePairs_df_400[1,],
-#                LoopFish_SamePairs_df_250[1,],
-#                LoopFish_SamePairs_df_b1[1,])
-#triali$dist <- c(1000,800,700,600,500,400,250,100)
-
-#only 4hr induced has some effect
-#stronger than same/delayed by quite a distance
-#250 strongest by far, then others fairly similar
-
-#trialii <- rbind(trial, triali)
-#trialii$pairType <- c(rep("Same/Delayed", 8), rep("Same", 8))
-
-#write.csv(trialii, "HiC_byTime_byDist.csv", row.names = F)
-
-#non-binned, cumulative version:
-cumulative <- read.csv("\\\\cmvm.datastore.ed.ac.uk/cmvm/scs/groups/lncRNA_orthology/Timecourse/HiC_byTime_byDist.csv")
-ggplot(cumulative) + aes(x = dist, y = OR, color = pairType) +
-  geom_point() +
-  geom_line() #+  scale_y_continuous(limits = c(1,8))
-
-#relative risk/effect size version
-cumulative$effectSize <- (cumulative$a/cumulative$b)/(cumulative$c/cumulative$d)
-ggplot(cumulative) + aes(x = dist, y = effectSize, color = pairType) +
-  geom_point() +
-  geom_line() #+  scale_y_continuous(limits = c(1,8))
-
-#don't really lose anything in terms of enrichment strength by including 1mbp
-#adds an additional 5 pairs
-#not really any sense in adding in same/delayed though
-
-#binned version
-binned <- read.csv("\\\\cmvm.datastore.ed.ac.uk/cmvm/scs/groups/lncRNA_orthology/Timecourse/HiC_byTime_byDist_binned.csv")
-
-ggplot(binned) + aes(x = dist, y = OR, color = pairType) +
-  geom_point() +
-  geom_line() #+  scale_y_continuous(limits = c(1,8))
-
-#relative risk/effect size version
-binned$effectSize <- (binned$a/binned$b)/(binned$c/binned$d)
-ggplot(binned) + aes(x = dist, y = effectSize, color = pairType) +
-  geom_point() +
-  geom_line() #+  scale_y_continuous(limits = c(1,8))
-
-#so what range should be allowed? within 100-250kbp is obviously decent
-#beyond also seems fine... no substantial drop
-
-#simplified for same/delayed
-(sum(binned$a[1:3])/sum(binned$b[1:3]))/(sum(binned$c[1:3])/sum(binned$d[1:3])) #1.5x more hic amongst cclnc pairs in close range
-(sum(binned$a[4:6])/sum(binned$b[4:6]))/(sum(binned$c[4:6])/sum(binned$d[4:6])) #1.6x more hic amongst cclnc pairs in close range
-#no difference rly
-
-#simplified for same
-(sum(binned$a[7:9])/sum(binned$b[7:9]))/(sum(binned$c[7:9])/sum(binned$d[7:9])) #2.3 more hic amongst cclnc pairs in close range
-(sum(binned$a[10:12])/sum(binned$b[10:12]))/(sum(binned$c[10:12])/sum(binned$d[10:12])) #2.13x more hic amongst cclnc pairs in close range
-#again no difference rly
-
-#but clear that the "delayed" are not rly worth including here
-
-#all same timeframe pairs from early induced lncs:
-EarlyInducedLncs_HiC_confirmed <- filter(AllLNC_AllPCG_2d3d, Lnc_Cluster == "Induced <4hrs", PCG_Timeframe == "<4hrs", !loopMethod == "Neither")
-EarlyRepressedLncs_HiC_confirmed <- filter(AllLNC_AllPCG_2d3d, Lnc_Cluster == "Repressed <4hrs", PCG_Timeframe == "<4hrs", !loopMethod == "Neither")
-
-#they are ALL for co-induced PCGs, and 5/6 for co-repressed
-
-#additional found compared to "naive analysis" ?
-EarlyInducedLncs_HiC_confirmed[EarlyInducedLncs_HiC_confirmed$pairs %in% CoRegPairs_04_48_24_extended_naiveSame$pairs,]
-
-#overall
-#full 1mbp range seems fine to use, way more found in smaller distance though
-#only strong effects for 4hr induction, pool size issue at later timepoints and repressed
-#effect mainly from induced (despite unstimulated caSMC, could they be in FBS and so proliferative?)
 
 #collect a non-DE lnc comparison for 0-4hr to display alongside (later timepoint can be displayed without e.g. in supplement)
 fpkm_allG_04 <- filter(fpkm_allG, (Hour0_meanFPKM>0.8 | Hour4_meanFPKM>0.8), !EnsID %in% fpkm_allGDE$EnsID)
