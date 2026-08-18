@@ -9,8 +9,7 @@ library(pheatmap)
 
 samplenames <- list.files("\\\\cmvm.datastore.ed.ac.uk/cmvm/scs/groups/lncRNA_orthology/Timecourse/rsem_4timepoints(NovelTx)_NonMergedEnsID", pattern = "*genes.results", full.names = TRUE)[1:16]
 
-#sample info copied/pasted from Amira (matches PCA characteristics later)
-#she orderered by patient, then condition
+#sample info orderered by patient, then condition, copy/paste from Amira email
 actualnames <- c("1) Pt151 - 0h 2) Pt151 - 4h 3) Pt151 - 8h 4) Pt151 - 24h 
                  5) Pt157 - 0h 6) Pt157 - 4h 7) Pt157 - 8h 8) Pt157 - 24h 
                  9) Pt134 - 0h 10) Pt134 - 4h 11) Pt134 - 8h 12) Pt134 - 24h 
@@ -38,7 +37,7 @@ fpkm <-do.call(cbind, lapply(sampleInfo_Timecourse$FileName, function(fn){
   }
   ))
 
-#fpkm <- TPM
+#fpkm
 fpkm <- data.frame(genes,fpkm,stringsAsFactors = FALSE)
 colnames(fpkm)<-c("ENSEMBL",sampleInfo_Timecourse$ActualNames)
 
@@ -67,11 +66,7 @@ fpkm_mean_treatment <- data.frame("Hour0_meanFPKM" = fpkm_mean_ctrl, "Hour0_seFP
 trial <- as.list(as.data.frame(t(fpkm_mean_treatment)))
 fpkm_max_treatment <- as.numeric(sapply(trial, max))
 
-#trial <- as.list(as.data.frame(t(fpkm_mean_treatment[,1:4])))
-#fpkm_max_treatment <- as.numeric(sapply(trial, max))
-
 fpkm <- cbind(fpkm, fpkm_mean_treatment, fpkm_max_treatment)
-#fpkm4 <- cbind(fpkm, fpkm_max_treatment4)
 
 #tximport, better use of isoform level info during DESeq2 norm see: https://support.bioconductor.org/p/94003/
 samplenames <- list.files("\\\\cmvm.datastore.ed.ac.uk/cmvm/scs/groups/lncRNA_orthology/Timecourse/rsem_4timepoints(NovelTx)_NonMergedEnsID/", 
