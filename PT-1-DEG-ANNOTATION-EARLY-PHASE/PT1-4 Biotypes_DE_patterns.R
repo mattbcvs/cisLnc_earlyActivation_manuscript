@@ -28,30 +28,6 @@ fpkm_allG$GeneClassUpdate[!is.na(fpkm_allG$TF) & !is.na(fpkm_allG$CC) & !fpkm_al
 
 table(unique(fpkm_allG[,c(1,58)])$GeneClassUpdate)
 
-#add in eLncs
-#Enhancer_lociII <- read.csv("\\\\cmvm.datastore.ed.ac.uk/cmvm/scs/groups/lncRNA_orthology/Timecourse/Enhancer_lociIItime.csv", header = T)
-#fpkm_allG$GeneClassUpdate[fpkm_allG$EnsID %in% filter(Enhancer_lociII, !is.na(EnhancerVerdict))$EnsID & fpkm_allG$V55 == "Bona fide lncRNA"] <- "ELnc"
-
-#add in Vlncs
-#allLncs_BestCAGE_FANTOM <- read.csv("\\\\cmvm.datastore.ed.ac.uk/cmvm/scs/groups/lncRNA_orthology/Timecourse/allLncs_BestCAGE_FANTOMtime.csv", header = T)
-#fpkm_allG$GeneClassUpdate[fpkm_allG$EnsID %in% filter(allLncs_BestCAGE_FANTOM, vSMCFacetNo >0)$EnsID & 
-#                            fpkm_allG$V55 == "Bona fide lncRNA"] <- "VLnc"
-#fpkm_allG$GeneClassUpdate[fpkm_allG$EnsID %in% filter(allLncs_BestCAGE_FANTOM, vSMCFacetNo >0)$EnsID & 
-#                            fpkm_allG$EnsID %in% filter(Enhancer_lociII, !is.na(EnhancerVerdict))$EnsID &
-#                            fpkm_allG$V55 == "Bona fide lncRNA"] <- "VLnc + ELnc"
-
-#update the V57 col:
-#table(unique(fpkm_allG[,c(2,57)])$V55)
-#table(unique(fpkm_allG[,c(2,60)])$GeneClassUpdate)
-
-#fpkm_allG$V55 <- fpkm_allG$GeneClassUpdate
-
-#write.csv(fpkm_allG, "fpkm_allGClassUpdate.csv", row.names = F)
-
-#n.b. not all PLAR PCGs called as such in ensembl, there will be some (<1%) of dodgy "PLAR-only" PCGs to remove from pairings later:
-table(unique(filter(fpkm_allG, grepl("coding|TF|CC", V55))[,c(1:6)])$EnsType)
-table(unique(filter(fpkm_allG, grepl("coding|TF|CC", V55))[,c(1:6)])$EnsType)/11887*100
-
 
 #### (skip on revisit) remove AS artefacts ####
 
@@ -62,11 +38,11 @@ fpkm_allG <- read.csv("\\\\cmvm.datastore.ed.ac.uk/cmvm/scs/groups/lncRNA_orthol
 table(unique(fpkm_allG[,c(2,55)])$V55)
 length(unique(fpkm_allG$EnsID))#14235 expressed genes, 847 bona fide lncs, 11887 PCGs
 
-#manual check of all lncRNA loci in IGV here:
+#manual check of all overlapping lncRNA loci in IGV here:
 FPKM_CQV_OVERLAP_fpkm <- read.csv("\\\\cmvm.datastore.ed.ac.uk/cmvm/scs/groups/lncRNA_orthology/Timecourse/SameoverlapsG_lncs.csv")
-table(FPKM_CQV_OVERLAP_fpkm$IGV)#369 pass, 449 fail
+table(FPKM_CQV_OVERLAP_fpkm$IGV)
 
-#should have removed artefacts from here already
+# remove artefacts from PLAR too:
 fpkm_allG_filt <- filter(fpkm_allG, grepl("chr", chr), !grepl("artefacts|Too low", GeneClassUpdate), !is.na(GeneClassUpdate))
 
 #remove manual found fails
@@ -79,9 +55,10 @@ table(unique(fpkm_allG_filt[,c(2,58)])$GeneClassUpdate)
 table(unique(fpkm_allG_filt_manual[,c(2,58)])$GeneClassUpdate)
 #597 after filtering
 
-#might as well remove the gene loci from here:
 fpkm_allG <- fpkm_allG_filt_manual[,-c(5:8)]
 #write.csv(fpkm_allG, "fpkm_allG_2026filt.csv", row.names = F)
+
+#repeat DEGs, post QC of gene/lncRNA artefacts:
 
 #start matrix to find DEGs
 fpkm_allGDE_lrt <- unique(filter(fpkm_allG, padj < 0.05)[,-c(1,43:50)])
@@ -112,49 +89,6 @@ fpkm_allG <- read.csv("\\\\cmvm.datastore.ed.ac.uk/cmvm/scs/groups/lncRNA_orthol
 fpkm_allGDE <- read.csv("\\\\cmvm.datastore.ed.ac.uk/cmvm/scs/groups/lncRNA_orthology/Timecourse/fpkm_allGDE_2026filt.csv")
 
 
-#### make a supplementary table ####
-
-#write.csv(fpkm_allGDE, "fpkm_allGDE.csv", row.names = F)
-
-
-#
-#### plot individual gene fpkms ####
-
-#format for timecourse
-colnames(fpkm_allGDE)
-trial <- unique(fpkm_allGDE[,c(1,2,4:19)])
-data <- t(trial[,3:18])
-colnames(data) <-trial$EnsID
-
-condition<-c(rep("0hr",4),rep("4hr",4),rep("8hr",4),rep("24hr",4))
-patient<-rep(c("1","2","3","4"),4)
-data_cols<-data.frame(condition=condition,patient=patient)
-
-#for plots
-data <- cbind(data_cols, data)
-
-#gene info
-unique(filter(fpkm_allGDE, EnsName == "IL6")[,c(1:3,20:41)])
-
-#check single row
-data[,grepl("ENSG00000136244.11", colnames(data))]
-
-plot <- data.frame("Patient" = data[,2], "Treatment" = factor(data[,1], levels = levels(as.factor(data[,1]))[c(1,3,4,2)]), 
-                   "fpkm" = data[,"ENSG00000136244.11"])
-
-ggplot(plot) + aes(x = Treatment, y = fpkm) +
-  geom_boxplot(width = 0.4, color = "grey60", outlier.shape = NA) +
-  geom_jitter(width = 0.2, aes(x = Treatment, y = fpkm, shape = Patient), size = 3, alpha = 0.7, color = "mediumorchid2") +
-  theme_minimal() +
-  ggtitle("IL6") +
-  theme(text = element_text(size = 20),
-        legend.position = "none",
-        plot.title = element_text(hjust = 0.5)) +
-  xlab("") +
-  ylab("FPKM")
-
-
-#
 #### expected/positive controls ####
 
 #expectations, early immune response and IEGs, cell cycle induction later, loss of SMC markers
@@ -178,34 +112,6 @@ plot_expectedGenes <- filter(fpkm_allGDE, (grepl("CC", GeneClassUpdate)))
 plot_expectedGenes <- filter(fpkm_allGDE, EnsName %in% c(IEGs_hs[,4]))
 
 plot_expectedGenes <- filter(fpkm_allGDE, EnsName %in% SMC_phenoSwitch)
-
-#simpler SMC markers
-SMC_phenoSwitch <- c("ACTA2", "CCN1", "TAGLN", "CARMN", "VIM" 
-                     #"KLF4", "TCF21"
-                     )
-
-#IEGs (inc. lots of immune)
-#IEGs <- read.csv("\\\\cmvm.datastore.ed.ac.uk/cmvm/scs/groups/Baker-lab/BioinfGroupResources/Gene lists/arner_2015_table_S5_IEGs_lit.csv")
-#IEGs_hs <- filter(IEGs, !Hs_symbol %in% c("", "-"))
-#IEGs_hs <- filter(IEGs_hs, !grepl("[a-z]", IEGs_hs$Total_count))
-#only in 8 or more human data
-#IEGs_hs_simpler <- filter(IEGs_hs, Hs_count >7)
-#IEGs_hs_simpler <- c("JUNB", "EGR1", "EGR2", "JUN", "IER3", "IER2", "FOSB", "CCL2", "IL1A", "IL6")
-
-#simpler prolif markers
-#Prolif_simpler <- c("MKI67", "PCNA", "UBE2C")
-
-#plot_expectedGenes <- filter(fpkm_allGDE, EnsName %in% c(IEGs_hs_simpler#[,4]
-#                                                         , Prolif_simpler#, SMC_phenoSwitch
-#                                                         ))
-
-
-#plot_expectedGenes$simple <- "IEG"
-#plot_expectedGenes$simple[grepl("CC", plot_expectedGenes$GeneClassUpdate)] <- "CC"
-#only 1 overlap
-#plot_expectedGenes$simple[grepl("CC", plot_expectedGenes$GeneClassUpdate) & plot_expectedGenes$EnsName %in% c(IEGs_hs[,4])] <- "Both"
-
-#plot_expectedGenes <- plot_expectedGenes[order(plot_expectedGenes$simple, decreasing = T),]
 
 mat <- plot_expectedGenes[,4:19]
 rownames(mat) <- plot_expectedGenes[,2]
@@ -265,124 +171,11 @@ p <- pheatmap(mat,clustering_method = "complete",annotation_legend = F,
               border_color = NA)
 
 
-#could also use the batched rldcounts for this
-library(DESeq2)
-rld <- readRDS("\\\\cmvm.datastore.ed.ac.uk/cmvm/scs/groups/Baker-lab/Matt cisLnc project/Write-up/2025/Fig1/rld4PCA.rds")
-assay(rld) <- limma::removeBatchEffect(assay(rld), rld$patient)
+#### temporal clustering ####
 
-batched_rld <- assay(rld)
-dim(batched_rld)
+#seperate genes by the timing of their first regulation
 
-batched_rld_IEG_CC <- batched_rld[rownames(batched_rld) %in% filter(fpkm_allG, (grepl("CC", GeneClassUpdate)) | EnsName %in% c(IEGs_hs[,4]))$MSTRG_ID,]
-
-batched_rld_IEG_CC <- as.data.frame(batched_rld_IEG_CC)
-
-batched_rld_IEG_CC$simple <- "IEG"
-batched_rld_IEG_CC$simple[rownames(batched_rld_IEG_CC) %in% filter(fpkm_allG, (grepl("CC", GeneClassUpdate)))$MSTRG_ID] <- "CC"
-
-batched_rld_IEG_CC <- batched_rld_IEG_CC[order(batched_rld_IEG_CC$simple, decreasing = T),]
-
-mat <- batched_rld_IEG_CC[,1:16]
-
-cal_z_score <- function(x){
-  (x - mean(x)) / sd(x)
-}
-mat <- t(apply(mat, 1, cal_z_score))
-
-myColor <- colorRampPalette(c("steelblue", "white", "red"))(50)
-myBreaks <- c(seq(min(mat), 0, 
-                  length.out=ceiling(50/2)), 
-              seq(max(mat)/50, 
-                  max(mat), 
-                  length.out=floor(50/2)))
-
-
-condition<-c(rep("0hr",4),rep("4hr",4),rep("8hr",4),rep("24hr",4))
-patient<-rep(c("1","2","3","4"),4)
-data_cols<-data.frame(condition=condition,patient=patient)
-
-data_colsHeat <- data.frame("Hours" = data_cols[,1], stringsAsFactors = T)
-rownames(data_colsHeat) <- colnames(mat)
-data_colsHeat$Hours <- factor(data_colsHeat$Hours, levels(data_colsHeat$Hours)[c(1,3,4,2)])
-
-
-library(pheatmap)
-p <- pheatmap(mat,clustering_method = "complete",annotation_legend = F,
-              annotation_col = data_colsHeat,
-              show_colnames = F, 
-              show_rownames = F, 
-              cluster_cols = F,
-              cluster_rows = F,
-              #cutree_rows = 2,
-              treeheight_col = 0, 
-              treeheight_row = 45,
-              legend = F,
-              color = myColor, 
-              breaks = myBreaks,
-              border_color = NA)
-
-
-SMC_phenoSwitch <- c("ACTA2", "CNN1", "VIM", "DES", "TAGLN", "CARMN", 
-                     "YY1", "KLF4", "MYOCD", "TET2", "SMAD3", "TCF21")
-
-SMC_contract <- c("ACTA2", "CNN1", "VIM", "DES", "TAGLN", "CARMN"#, 
-                     #"YY1", "KLF4", "MYOCD", "TET2", "SMAD3", "TCF21"
-                     )
-
-batched_rld_SMC <- batched_rld[rownames(batched_rld) %in% filter(fpkm_allG, EnsName %in% SMC_contract)$MSTRG_ID,]
-
-batched_rld_SMC <- as.data.frame(batched_rld_SMC)
-
-mat <- batched_rld_SMC[,1:16]
-
-MatchRowNamesTable <- unique(filter(fpkm_allG, EnsName %in% SMC_contract)[,c(1,3)])
-MatchRowNamesTable <- MatchRowNamesTable[match(rownames(mat), MatchRowNamesTable$MSTRG_ID),]
-
-rownames(mat) <- MatchRowNamesTable[,2]
-
-cal_z_score <- function(x){
-  (x - mean(x)) / sd(x)
-}
-mat <- t(apply(mat, 1, cal_z_score))
-
-myColor <- colorRampPalette(c("steelblue", "white", "red"))(50)
-myBreaks <- c(seq(min(mat), 0, 
-                  length.out=ceiling(50/2)), 
-              seq(max(mat)/50, 
-                  max(mat), 
-                  length.out=floor(50/2)))
-
-
-condition<-c(rep("0hr",4),rep("4hr",4),rep("8hr",4),rep("24hr",4))
-patient<-rep(c("1","2","3","4"),4)
-data_cols<-data.frame(condition=condition,patient=patient)
-
-data_colsHeat <- data.frame("Hours" = data_cols[,1], stringsAsFactors = T)
-rownames(data_colsHeat) <- colnames(mat)
-data_colsHeat$Hours <- factor(data_colsHeat$Hours, levels(data_colsHeat$Hours)[c(1,3,4,2)])
-
-library(pheatmap)
-p <- pheatmap(mat,clustering_method = "complete",annotation_legend = F,
-              annotation_col = data_colsHeat,
-              show_colnames = F, 
-              show_rownames = T, 
-              cluster_cols = F,
-              cluster_rows = T, gaps_col = c(4,8,12),
-              #cutree_rows = 2,
-              treeheight_col = 0, 
-              treeheight_row = 0,
-              #legend = F,
-              color = myColor, 
-              breaks = myBreaks,
-              border_color = NA)
-
-
-#### temporal clustering (instead of hierarchical clustering which had less clear lnc bias) ####
-
-#seperate genes by the timing of their first regulation (hierarchical didn't show lnc bias)
-#using all 6x possible comparisons between the 4 timepoints (might not be practical for datasets with more timepoints)
-
-length(unique(fpkm_allGDE$EnsID))#4345 after DEG update Nov'23, 5081 after Dec'25 update
+length(unique(fpkm_allGDE$EnsID))
 
 #regulated within 4 hours:
 fpkm_allGDE_Upwithin_4 <- filter(fpkm_allGDE, (Hour0_meanFPKM >=0.8 | Hour4_meanFPKM >=0.8) &
@@ -439,62 +232,7 @@ fpkm_allGDE$RegulationStart[fpkm_allGDE$EnsID %in% fpkm_allGDE_Downwithin_24$Ens
 #remove others (only 1):
 fpkm_allGDE <- filter(fpkm_allGDE, !is.na(RegulationStart))
 
-#above lines seperates genes into distinct buckets
-table(fpkm_allGDE$RegulationStart)
-table(fpkm_allGDE$V55)#222 lncRNAs (n.b. 24 extra since Q4 2025 changes)
-table(fpkm_allGDE$V55, fpkm_allGDE$RegulationStart)
-
-
 #write.csv(fpkm_allGDE, "fpkm_allGDE_2026filt.csv", row.names = F)
-
-
-#### heatmaps of clusters ordered by regulation start ####
-#cluster within each bucket:
-mat <- fpkm_allGDE[,8:23] #4345 genes 0 baseline/no strand issue
-rownames(mat) <- fpkm_allGDE[,1]
-cal_z_score <- function(x){
-  (x - mean(x)) / sd(x)
-}
-mat <- t(apply(mat, 1, cal_z_score))
-
-myColor <- colorRampPalette(c("steelblue", "white", "red"))(50)
-myBreaks <- c(seq(min(mat), 0, 
-                  length.out=ceiling(50/2)), 
-              seq(max(mat)/50, 
-                  max(mat), 
-                  length.out=floor(50/2)))
-
-
-condition<-c(rep("0hr",4),rep("4hr",4),rep("8hr",4),rep("24hr",4))
-patient<-rep(c("1","2","3","4"),4)
-data_cols<-data.frame(condition=condition,patient=patient)
-
-data_colsHeat <- data.frame("Hours" = data_cols[,1], stringsAsFactors = T)
-rownames(data_colsHeat) <- colnames(mat)
-data_colsHeat$Hours <- factor(data_colsHeat$Hours, levels(data_colsHeat$Hours)[c(1,3,4,2)])
-
-#make each cluster's heatmap seperately
-mati <- mat[rownames(mat) %in% fpkm_allGDE_Upwithin_4$EnsID,]
-mati <- mat[rownames(mat) %in% fpkm_allGDE_Downwithin_4$EnsID,]
-mati <- mat[rownames(mat) %in% fpkm_allGDE_Upwithin_8$EnsID,]
-mati <- mat[rownames(mat) %in% fpkm_allGDE_Downwithin_8$EnsID,]
-mati <- mat[rownames(mat) %in% fpkm_allGDE_Upwithin_24$EnsID,]
-mati <- mat[rownames(mat) %in% fpkm_allGDE_Downwithin_24$EnsID,]
-
-library(pheatmap)
-p <- pheatmap(mati,clustering_method = "complete",annotation_legend = F,
-              annotation_col = data_colsHeat,
-              show_colnames = F, 
-              show_rownames = F, 
-              cluster_cols = F,
-              cluster_rows = T,
-              #cutree_rows = 3,
-              treeheight_col = 0, 
-              treeheight_row = 45,
-              legend = F,
-              color = myColor, 
-              breaks = myBreaks,
-              border_color = NA)
 
 
 #### bar plots showing size of waves ####
@@ -589,7 +327,6 @@ dotplot(triali[[6]], showCategory = 20, label_format = function(x) stringr::str_
 
 fpkm_allGDE$Simple <- fpkm_allGDE$GeneClassUpdate
 fpkm_allGDE$Simple[grepl("fide|Lnc", fpkm_allGDE$GeneClassUpdate)] <- "LncRNA"
-#fpkm_allGDE$Simple[grepl("coding|TF|CC", fpkm_allGDE$GeneClassUpdate)] <- "PCG"
 
 Cluster_biotype <- as.data.frame(table(fpkm_allGDE$Simple, fpkm_allGDE$RegulationStart))
 
@@ -597,7 +334,6 @@ table(fpkm_allGDE$Simple)
 
 #bias of lncRNAs:
 table(fpkm_allGDE$Simple)/length(fpkm_allGDE$EnsID)*100
-#221 lncs are 4.35% of all DEGs
 trial <- filter(Cluster_biotype, Var1 == "LncRNA")
 trial$Freq/table(fpkm_allGDE$RegulationStart)*100
 #looks like biases
@@ -658,148 +394,14 @@ ggplot(LncWaveBias, aes(x = FirstRegulation)) +
   theme_minimal() +
   theme(text = element_text(size=15))
 
-#bias of PCGs:
-#Selected <- "PCG"
-#table(fpkm_allGDE$Simple)[Selected]
-#table(fpkm_allGDE$Simple)/5081*100
-##4783 pcgs are 94% of all DEGs
-#trial <- filter(Cluster_biotype, grepl(Selected, Var1))
-#trial$Freq/table(fpkm_allGDE$RegulationStart)*100
-#looks like possible biases
 
-#fisher test: background DE PCGs, selection cluster, hit lncRNA
-#trial$selection <- table(fpkm_allGDE$RegulationStart)
-
-#ClusterNames <- trial$Var2
-
-#PCGEnrich_cluster <- list()
-
-for (i in 1:length(ClusterNames)){
-  a <- trial[i,3]
-  b <- trial[i,4]
-  c <- table(fpkm_allGDE$Simple)[Selected]
-  d <- 5081
-  
-  PCGEnrich_cluster[[i]] <- data.frame(fisher.test(data.frame("LncRNA" = c(a,b-a),
-                                                              "other" = c(c-a,d-c-(b-a)), row.names = c("Cluster", "other")), alternative = "greater")$est,
-                                       fisher.test(data.frame("LncRNA" = c(a,b-a),
-                                                              "other" = c(c-a,d-c-(b-a)), row.names = c("Cluster", "other")), alternative = "greater")$p)
-}
-#names(PCGEnrich_cluster) <- ClusterNames
-#triali <- bind_rows(PCGEnrich_cluster, .id = "Cluster")
-#rownames(triali) <- NULL
-#colnames(triali) <- c("Cluster", "OR", "p")
-#triali$p_adj <- p.adjust(triali$p, method = "BH")
-#2x significant biases - opposite of lncRNAs
-
-#percentage plots
-#trial$FirstRegulation <- c("Within \n4hrs", "Within \n8hrs", "Within \n24hrs", "Within \n4hrs", "Within \n8hrs", "Within \n24hrs")
-#trial$FirstRegulation <- as.factor(trial$FirstRegulation)
-#trial$FirstRegulation <- factor(trial$FirstRegulation, levels = levels(trial$FirstRegulation)[c(2,3,1)])
-#trial$UpDown <- sapply(sapply(as.character(trial$Var2), strsplit, " "),"[[" , 1)
-#trial$PercCategory <- trial$Freq/table(fpkm_allGDE$Simple)[Selected]*100
-#trial$PercBackground <- trial$selection/length(fpkm_allGDE$EnsID)*100
-
-##PCGWaveBias <- cbind(trial[,-c(2)], triali[,-c(1)])
-
-#ggplot(PCGWaveBias, aes(x = FirstRegulation)) +
-#  geom_col(data = filter(PCGWaveBias, grepl("Induced", UpDown)), 
-#           aes(y = PercCategory, fill = UpDown)) +
-#  geom_col(data = filter(PCGWaveBias, grepl("Induced", UpDown)), 
-#           aes(y = PercBackground), fill = NA, color = "grey30", linetype = "dashed") +
-#  geom_label(data = filter(PCGWaveBias, grepl("Induced", UpDown)), 
-#             aes(y = PercCategory, label = Freq), size = 3) +
-#  geom_col(data = filter(PCGWaveBias, grepl("Repressed", UpDown)), 
-#           aes(y = -PercCategory, fill = UpDown)) +
-#  geom_col(data = filter(PCGWaveBias, grepl("Repressed", UpDown)), 
-#           aes(y = -PercBackground), fill = NA, color = "grey30", linetype = "dashed") +
-#  geom_label(data = filter(PCGWaveBias, grepl("Repressed", UpDown)), 
-#             aes(y = -PercCategory, label = Freq), size = 3) +
-#  ylab("% DE PCGs") +
-#  xlab("") +
-#  scale_y_continuous(limits = c(-30,35),breaks = seq(-30,30, by = 10),
-#                     labels = (c(seq(30, 0, by = -10), seq(10,30,by=10)))) +
-#  theme_minimal()
-
-
-#TFs
-fpkm_allGDE$TF <- fpkm_allGDE$GeneClassUpdate
-fpkm_allGDE$TF[grepl("TF", fpkm_allGDE$GeneClassUpdate)] <- "TF"
-
-Selected <- "TF"
-table(fpkm_allGDE$TF)[Selected]
-table(fpkm_allGDE$TF)/length(fpkm_allGDE$EnsID)*100
-#399 TFs are 7.8% of all DEGs
-
-Cluster_biotype <- as.data.frame(table(fpkm_allGDE$TF, fpkm_allGDE$RegulationStart))
-trial <- filter(Cluster_biotype, grepl(Selected, Var1))
-trial$Freq/table(fpkm_allGDE$RegulationStart)*100
-#looks like possible biases
-
-#fisher test: background DE PCGs, selection cluster, hit lncRNA
-trial$selection <- table(fpkm_allGDE$RegulationStart)
-
-ClusterNames <- trial$Var2
-
-TFEnrich_cluster <- list()
-
-for (i in 1:length(ClusterNames)){
-  a <- trial[i,3]
-  b <- trial[i,4]
-  c <- table(fpkm_allGDE$TF)[Selected]
-  d <- length(fpkm_allGDE$EnsID)
-  
-  TFEnrich_cluster[[i]] <- data.frame(fisher.test(data.frame("LncRNA" = c(a,b-a),
-                                                             "other" = c(c-a,d-c-(b-a)), row.names = c("Cluster", "other")), alternative = "greater")$est,
-                                      fisher.test(data.frame("LncRNA" = c(a,b-a),
-                                                             "other" = c(c-a,d-c-(b-a)), row.names = c("Cluster", "other")), alternative = "greater")$p)
-}
-names(TFEnrich_cluster) <- ClusterNames
-triali <- bind_rows(TFEnrich_cluster, .id = "Cluster")
-rownames(triali) <- NULL
-colnames(triali) <- c("Cluster", "OR", "p")
-triali$p_adj <- p.adjust(triali$p, method = "BH")
-#Induced first timepoint, rarely at second
-#2x significant biases - similar to lncRNA
-
-#percentage plots
-trial$FirstRegulation <- c("Within \n4hrs", "Within \n8hrs", "Within \n24hrs", "Within \n4hrs", "Within \n8hrs", "Within \n24hrs")
-trial$FirstRegulation <- as.factor(trial$FirstRegulation)
-trial$FirstRegulation <- factor(trial$FirstRegulation, levels = levels(trial$FirstRegulation)[c(2,3,1)])
-trial$UpDown <- sapply(sapply(as.character(trial$Var2), strsplit, " "),"[[" , 1)
-trial$PercCategory <- trial$Freq/table(fpkm_allGDE$TF)[Selected]*100
-trial$PercBackground <- trial$selection/length(fpkm_allGDE$EnsID)*100
-
-TFWaveBias <- cbind(trial[,-c(2)], triali[,-c(1)])
-
-ggplot(TFWaveBias, aes(x = FirstRegulation)) +
-  geom_col(data = filter(TFWaveBias, grepl("Induced", UpDown)), 
-           aes(y = PercCategory, fill = UpDown)) +
-  geom_col(data = filter(TFWaveBias, grepl("Induced", UpDown)), 
-           aes(y = PercBackground), fill = NA, color = "grey30", linetype = "dashed") +
-  geom_label(data = filter(TFWaveBias, grepl("Induced", UpDown)), 
-             aes(y = PercCategory, label = Freq), size = 3) +
-  geom_col(data = filter(TFWaveBias, grepl("Repressed", UpDown)), 
-           aes(y = -PercCategory, fill = UpDown)) +
-  geom_col(data = filter(TFWaveBias, grepl("Repressed", UpDown)), 
-           aes(y = -PercBackground), fill = NA, color = "grey30", linetype = "dashed") +
-  geom_label(data = filter(TFWaveBias, grepl("Repressed", UpDown)), 
-             aes(y = -PercCategory, label = Freq), size = 3) +
-  ylab("% DE TFs") +
-  xlab("") +
-  scale_y_continuous(limits = c(-30,35),breaks = seq(-30,30, by = 10),
-                     labels = (c(seq(30, 0, by = -10), seq(10,30,by=10)))) +
-  theme_minimal()
-
-
-#CCs
+#Cell cycle - Giotti S/G2M
 fpkm_allGDE$CC <- fpkm_allGDE$GeneClassUpdate
 fpkm_allGDE$CC[grepl("CC", fpkm_allGDE$GeneClassUpdate)] <- "CC"
 
 Selected <- "CC"
 table(fpkm_allGDE$CC)[Selected]
 table(fpkm_allGDE$CC)/length(fpkm_allGDE$EnsID)*100
-#450 are 8.9% of all DEGs
 
 Cluster_biotype <- as.data.frame(table(fpkm_allGDE$CC, fpkm_allGDE$RegulationStart))
 trial <- filter(Cluster_biotype, grepl(Selected, Var1))
@@ -939,7 +541,6 @@ ggplot(IEGWaveBias, aes(x = FirstRegulation)) +
 
 #combined figure:
 AllTypesWaveBias <- rbind(PCGWaveBias, 
-  #TFWaveBias, 
   CCWaveBias, IEGWaveBias, LncWaveBias
   )
 
@@ -983,9 +584,6 @@ colnames(spacers) <- colnames(AllTypesWaveBias)
 AllTypesWaveBias <- rbind(AllTypesWaveBias, spacers)
 
 AllTypesWaveBias$UpDownType <- factor(AllTypesWaveBias$UpDownType)
-#AllTypesWaveBias$UpDownType <- factor(AllTypesWaveBias$UpDownType, 
-#                                      levels = levels(AllTypesWaveBias$UpDownType)[c(6,5,9,4,3,10,2,1,11,14,13,12,8,7)])
-#version for without TFs:
 AllTypesWaveBias$UpDownType <- factor(AllTypesWaveBias$UpDownType, 
                                       levels = levels(AllTypesWaveBias$UpDownType)[c(6,5,9,2,1,10,4,3,11,8,7)])
 
@@ -1012,347 +610,7 @@ ggplot(AllTypesWaveBias[-c(1:6),]) + aes(x = FirstRegulation, y = UpDownType, si
         #axis.text.y = element_blank()
   )
 
-
-#portrait:
-AllTypesWaveBias$FirstRegulation <- factor(AllTypesWaveBias$FirstRegulation)
-AllTypesWaveBias$FirstRegulation <- factor(AllTypesWaveBias$FirstRegulation, 
-                                      levels = levels(AllTypesWaveBias$FirstRegulation)[c(3,2,1)])
-
-ggplot(AllTypesWaveBias) + aes(y = FirstRegulation, x = UpDownType, size = padj_simple, fill = `Log2(Odds Ratio)`) +
-  geom_point(color = "grey30", shape = 21) +
-  xlab("") +
-  ylab("") +
-  scale_size_discrete(range = c(9,17), limits = c("p<0.1", "p<0.05", "p<0.01", "p<0.001", "p<0.0001")) +
-  scale_fill_gradient2(low = "steelblue", mid = "white", high = "red") +
-  theme_minimal() +
-  theme(legend.key.size = unit(1.4, "line"),
-        legend.title = element_text(size=18),
-        legend.text = element_text(size=18),
-        axis.text.x = element_text(size=22),
-        axis.text.y = element_blank()
-  ) + Rotated
-
-
-
-#### key result establishes lncRNAs are pre-disposed to begin regulation early wave
-
-
-#### alternate: bias of gene sets to be DE vs. stable within each time frame ####
-
-#per biotype again (could also do per comparison)
-
-#find percentage of biotypes expressed in each side of comparison:
-fpkm_allG_04 <- filter(fpkm_allG, Hour0_meanFPKM>1 | Hour4_meanFPKM>1)
-fpkm_allG_04 <- unique(fpkm_allG_04[,c(2,5,60)])
-fpkm_allG_04$Simple <- fpkm_allG_04$GeneClassUpdate
-fpkm_allG_04$Simple[grepl("fide|Lnc", fpkm_allG_04$GeneClassUpdate)] <- "LncRNA"
-fpkm_allG_04$Simple[grepl("coding|TF|CC", fpkm_allG_04$GeneClassUpdate)] <- "PCG"
-fpkm_allG_04 <- filter(fpkm_allG_04, !grepl("artefacts", Simple))
-
-#TFs, CCs, IEGs:
-fpkm_allG_04$TF <- NA
-fpkm_allG_04$TF[grepl("TF", fpkm_allG_04$GeneClassUpdate)] <- "TF"
-fpkm_allG_04$CC <- NA
-fpkm_allG_04$CC[grepl("CC", fpkm_allG_04$GeneClassUpdate)] <- "CC"
-fpkm_allG_04$IEG <- NA
-fpkm_allG_04$IEG[fpkm_allG_04$EnsName %in% IEGs_hs$Hs_symbol] <- "IEG"
-
-#up regulated:
-fpkm_allG_04$Regulation <- "None"
-fpkm_allG_04$Regulation[fpkm_allG_04$EnsID %in% filter(fpkm_allGDE, grepl("Induced <4hrs", RegulationStart))$EnsID] <- "Regulated"
-
-Biotype_regulated <- as.data.frame(table(filter(fpkm_allG_04, Regulation == "Regulated")$Simple))
-Biotype_regulated$backgroundHit <- as.data.frame(table(fpkm_allG_04$Simple))[,2]
-
-trial <- data.frame("Var1" = c("TF", "CC", "IEG"), rbind(table(fpkm_allG_04$TF, fpkm_allG_04$Regulation)[2:1],
-      table(fpkm_allG_04$CC, fpkm_allG_04$Regulation)[2:1],
-      table(fpkm_allG_04$IEG, fpkm_allG_04$Regulation)[2:1]))
-colnames(trial) <- colnames(Biotype_regulated)
-trial$backgroundHit <- trial$Freq + trial$backgroundHit
-
-Biotype_regulated <- rbind(Biotype_regulated, trial)
-
-Biotype_regulated$selection <- length(filter(fpkm_allGDE, grepl("Induced <4hrs", RegulationStart))$EnsID)
-Biotype_regulated$background <- length(unique(fpkm_allG_04$EnsID))
-Biotype_regulated$FirstRegulation <- "Within \n4hrs"
-Biotype_regulated$UpDown <- "Induced"
-Up <- Biotype_regulated
-
-#down regulated
-fpkm_allG_04$Regulation <- "None"
-fpkm_allG_04$Regulation[fpkm_allG_04$EnsID %in% filter(fpkm_allGDE, grepl("Repressed <4hrs", RegulationStart))$EnsID] <- "Regulated"
-
-Biotype_regulated <- as.data.frame(table(filter(fpkm_allG_04, Regulation == "Regulated")$Simple))
-Biotype_regulated$backgroundHit <- as.data.frame(table(fpkm_allG_04$Simple))[,2]
-
-trial <- data.frame("Var1" = c("TF", "CC", "IEG"), rbind(table(fpkm_allG_04$TF, fpkm_allG_04$Regulation)[2:1],
-                                                         table(fpkm_allG_04$CC, fpkm_allG_04$Regulation)[2:1],
-                                                         table(fpkm_allG_04$IEG, fpkm_allG_04$Regulation)[2:1]))
-colnames(trial) <- colnames(Biotype_regulated)
-trial$backgroundHit <- trial$Freq + trial$backgroundHit
-
-Biotype_regulated <- rbind(Biotype_regulated, trial)
-
-Biotype_regulated$selection <- length(filter(fpkm_allGDE, grepl("Repressed <4hrs", RegulationStart))$EnsID)
-Biotype_regulated$background <- length(unique(fpkm_allG_04$EnsID))
-Biotype_regulated$FirstRegulation <- "Within \n4hrs"
-Biotype_regulated$UpDown <- "Repressed"
-Down <- Biotype_regulated
-
-alt_04 <- rbind(Up, Down)
-
-
-#for remaining genes
-#find percentage of biotypes expressed in each side of comparison:
-#remaining genes after 4hrs
-fpkm_allG_08 <- filter(fpkm_allG, (Hour0_meanFPKM>1 | Hour8_meanFPKM>1), !EnsID %in% c(fpkm_allGDE_Upwithin_4$EnsID,
-                                                                                       fpkm_allGDE_Downwithin_4$EnsID))
-fpkm_allG_08 <- unique(fpkm_allG_08[,c(2,5,60)])
-fpkm_allG_08$Simple <- fpkm_allG_08$GeneClassUpdate
-fpkm_allG_08$Simple[grepl("fide|Lnc", fpkm_allG_08$GeneClassUpdate)] <- "LncRNA"
-fpkm_allG_08$Simple[grepl("coding|TF|CC", fpkm_allG_08$GeneClassUpdate)] <- "PCG"
-fpkm_allG_08 <- filter(fpkm_allG_08, !grepl("artefacts", Simple))
-
-#TFs, CCs, IEGs:
-fpkm_allG_08$TF <- NA
-fpkm_allG_08$TF[grepl("TF", fpkm_allG_08$GeneClassUpdate)] <- "TF"
-fpkm_allG_08$CC <- NA
-fpkm_allG_08$CC[grepl("CC", fpkm_allG_08$GeneClassUpdate)] <- "CC"
-fpkm_allG_08$IEG <- NA
-fpkm_allG_08$IEG[fpkm_allG_08$EnsName %in% IEGs_hs$Hs_symbol] <- "IEG"
-
-#up regulated:
-fpkm_allG_08$Regulation <- "None"
-fpkm_allG_08$Regulation[fpkm_allG_08$EnsID %in% filter(fpkm_allGDE, grepl("Induced 4-8hrs", RegulationStart))$EnsID] <- "Regulated"
-
-Biotype_regulated <- as.data.frame(table(filter(fpkm_allG_08, Regulation == "Regulated")$Simple))
-Biotype_regulated$backgroundHit <- as.data.frame(table(fpkm_allG_08$Simple))[,2]
-
-trial <- data.frame("Var1" = c("TF", "CC", "IEG"), rbind(table(fpkm_allG_08$TF, fpkm_allG_08$Regulation)[2:1],
-                                                         table(fpkm_allG_08$CC, fpkm_allG_08$Regulation)[2:1],
-                                                         table(fpkm_allG_08$IEG, fpkm_allG_08$Regulation)[2:1]))
-colnames(trial) <- colnames(Biotype_regulated)
-trial$backgroundHit <- trial$Freq + trial$backgroundHit
-
-Biotype_regulated <- rbind(Biotype_regulated, trial)
-
-Biotype_regulated$selection <- length(filter(fpkm_allGDE, grepl("Induced 4-8hrs", RegulationStart))$EnsID)
-Biotype_regulated$background <- length(unique(fpkm_allG_08$EnsID))
-Biotype_regulated$FirstRegulation <- "Within \n8hrs"
-Biotype_regulated$UpDown <- "Induced"
-Up <- Biotype_regulated
-
-#down regulated
-fpkm_allG_08$Regulation <- "None"
-fpkm_allG_08$Regulation[fpkm_allG_08$EnsID %in% filter(fpkm_allGDE, grepl("Repressed 4-8hrs", RegulationStart))$EnsID] <- "Regulated"
-
-Biotype_regulated <- as.data.frame(table(filter(fpkm_allG_08, Regulation == "Regulated")$Simple))
-Biotype_regulated$backgroundHit <- as.data.frame(table(fpkm_allG_08$Simple))[,2]
-
-trial <- data.frame("Var1" = c("TF", "CC", "IEG"), rbind(table(fpkm_allG_08$TF, fpkm_allG_08$Regulation)[2:1],
-                                                         table(fpkm_allG_08$CC, fpkm_allG_08$Regulation)[2:1],
-                                                         table(fpkm_allG_08$IEG, fpkm_allG_08$Regulation)[2:1]))
-colnames(trial) <- colnames(Biotype_regulated)
-trial$backgroundHit <- trial$Freq + trial$backgroundHit
-
-Biotype_regulated <- rbind(Biotype_regulated, trial)
-
-Biotype_regulated$selection <- length(filter(fpkm_allGDE, grepl("Repressed 4-8hrs", RegulationStart))$EnsID)
-Biotype_regulated$background <- length(unique(fpkm_allG_08$EnsID))
-Biotype_regulated$FirstRegulation <- "Within \n8hrs"
-Biotype_regulated$UpDown <- "Repressed"
-Down <- Biotype_regulated
-
-alt_08 <- rbind(Up, Down)
-
-
-#for remaining genes
-#find percentage of biotypes expressed in each side of comparison:
-#remaining genes after 4hrs
-fpkm_allG_24 <- filter(fpkm_allG, (Hour0_meanFPKM>1 | Hour24_meanFPKM>1), 
-                       !EnsID %in% c(fpkm_allGDE_Upwithin_4$EnsID,
-                                     fpkm_allGDE_Downwithin_4$EnsID),
-                       !EnsID %in% c(fpkm_allGDE_Upwithin_8$EnsID,
-                                     fpkm_allGDE_Downwithin_8$EnsID))
-fpkm_allG_24 <- unique(fpkm_allG_24[,c(2,5,60)])
-fpkm_allG_24$Simple <- fpkm_allG_24$GeneClassUpdate
-fpkm_allG_24$Simple[grepl("fide|Lnc", fpkm_allG_24$GeneClassUpdate)] <- "LncRNA"
-fpkm_allG_24$Simple[grepl("coding|TF|CC", fpkm_allG_24$GeneClassUpdate)] <- "PCG"
-fpkm_allG_24 <- filter(fpkm_allG_24, !grepl("artefacts", Simple))
-
-#TFs, CCs, IEGs:
-fpkm_allG_24$TF <- NA
-fpkm_allG_24$TF[grepl("TF", fpkm_allG_24$GeneClassUpdate)] <- "TF"
-fpkm_allG_24$CC <- NA
-fpkm_allG_24$CC[grepl("CC", fpkm_allG_24$GeneClassUpdate)] <- "CC"
-fpkm_allG_24$IEG <- NA
-fpkm_allG_24$IEG[fpkm_allG_24$EnsName %in% IEGs_hs$Hs_symbol] <- "IEG"
-
-#up regulated:
-fpkm_allG_24$Regulation <- "None"
-fpkm_allG_24$Regulation[fpkm_allG_24$EnsID %in% filter(fpkm_allGDE, grepl("Induced 8-24hrs", RegulationStart))$EnsID] <- "Regulated"
-
-Biotype_regulated <- as.data.frame(table(filter(fpkm_allG_24, Regulation == "Regulated")$Simple))
-Biotype_regulated$backgroundHit <- as.data.frame(table(fpkm_allG_24$Simple))[,2]
-
-trial <- data.frame("Var1" = c("TF", "CC", "IEG"), rbind(table(fpkm_allG_24$TF, fpkm_allG_24$Regulation)[2:1],
-                                                         table(fpkm_allG_24$CC, fpkm_allG_24$Regulation)[2:1],
-                                                         table(fpkm_allG_24$IEG, fpkm_allG_24$Regulation)[2:1]))
-colnames(trial) <- colnames(Biotype_regulated)
-trial$backgroundHit <- trial$Freq + trial$backgroundHit
-
-Biotype_regulated <- rbind(Biotype_regulated, trial)
-
-Biotype_regulated$selection <- length(filter(fpkm_allGDE, grepl("Induced 8-24hrs", RegulationStart))$EnsID)
-Biotype_regulated$background <- length(unique(fpkm_allG_24$EnsID))
-Biotype_regulated$FirstRegulation <- "Within \n24hrs"
-Biotype_regulated$UpDown <- "Induced"
-Up <- Biotype_regulated
-
-#down regulated
-fpkm_allG_24$Regulation <- "None"
-fpkm_allG_24$Regulation[fpkm_allG_24$EnsID %in% filter(fpkm_allGDE, grepl("Repressed 8-24hrs", RegulationStart))$EnsID] <- "Regulated"
-
-Biotype_regulated <- as.data.frame(table(filter(fpkm_allG_24, Regulation == "Regulated")$Simple))
-Biotype_regulated$backgroundHit <- as.data.frame(table(fpkm_allG_24$Simple))[,2]
-
-trial <- data.frame("Var1" = c("TF", "CC", "IEG"), rbind(table(fpkm_allG_24$TF, fpkm_allG_24$Regulation)[2:1],
-                                                         table(fpkm_allG_24$CC, fpkm_allG_24$Regulation)[2:1],
-                                                         table(fpkm_allG_24$IEG, fpkm_allG_24$Regulation)[2:1]))
-colnames(trial) <- colnames(Biotype_regulated)
-trial$backgroundHit <- trial$Freq + trial$backgroundHit
-
-Biotype_regulated <- rbind(Biotype_regulated, trial)
-
-Biotype_regulated$selection <- length(filter(fpkm_allGDE, grepl("Repressed 8-24hrs", RegulationStart))$EnsID)
-Biotype_regulated$background <- length(unique(fpkm_allG_24$EnsID))
-Biotype_regulated$FirstRegulation <- "Within \n24hrs"
-Biotype_regulated$UpDown <- "Repressed"
-Down <- Biotype_regulated
-
-alt_24 <- rbind(Up, Down)
-
-
-alt_all <- rbind(alt_04, alt_08, alt_24)
-
-alt_all <- filter(alt_all, !Var1 == "Putative lncRNA")
-
-fisher_list <- list()
-
-for (i in 1:length(alt_all[,1])){
-  a <- alt_all$Freq[i]
-  b <- alt_all$selection[i]
-  c <- alt_all$backgroundHit[i]
-  d <- alt_all$background[i]
-  
-  fisher_list[[i]] <- data.frame(fisher.test(data.frame("DE" = c(a,b-a),
-                                                              "other" = c(c-a,d-c-(b-a)), row.names = c("ClassOfInt", "other")))$est,
-                                       fisher.test(data.frame("DE" = c(a,b-a),
-                                                              "other" = c(c-a,d-c-(b-a)), row.names = c("ClassOfInt", "other")))$p)
-}
-
-trial <- bind_rows(fisher_list)
-colnames(trial) <- c("OR", "p")
-
-alt_all <- cbind(alt_all, trial)
-
-#p adjust per class:
-alt_all$Var1 <- as.character(alt_all$Var1)
-trial <- split(alt_all, alt_all$Var1)
-
-triali <- lapply(trial, function(x){
-  x$p_adj <- p.adjust(x$p, method = "BH")
-  return(x)
-})
-
-triali <- bind_rows(triali)
-
-alt_all <- triali
-
-alt_all$OR_corrected <- alt_all$OR
-alt_all$OR_corrected[alt_all$p_adj >0.1] <- NA
-alt_all$OR_corrected <- alt_all$OR_corrected + 0.001
-alt_all$`Log2(Odds Ratio)` <- log2(alt_all$OR_corrected)
-
-alt_all$`Log2(Odds Ratio)`[alt_all$`Log2(Odds Ratio)` < -5] <- -5
-alt_all$`Log2(Odds Ratio)`[alt_all$`Log2(Odds Ratio)` >5] <- 5
-
-alt_all$padj_corrected <- alt_all$p_adj
-alt_all$padj_corrected[alt_all$p_adj >0.1] <- NA
-
-alt_all$padj_simple <- NA
-alt_all$padj_simple[alt_all$padj_corrected < 0.1] <- "p<0.1"
-alt_all$padj_simple[alt_all$padj_corrected < 0.05] <- "p<0.05"
-alt_all$padj_simple[alt_all$padj_corrected < 0.01] <- "p<0.01"
-alt_all$padj_simple[alt_all$padj_corrected < 0.001] <- "p<0.001"
-alt_all$padj_simple[alt_all$padj_corrected < 0.0001] <- "p<0.0001"
-
-alt_all$UpDownType <- paste(alt_all$Var1, alt_all$UpDown, sep = "-")
-
-alt_all <- alt_all[,c(6,15,14,12)]
-
-#insert spacer between each biotype:
-spacers <- data.frame(
-  "FirstRegulation" = c(rep("Within \n4hrs", 4), rep("Within \n8hrs", 4), rep("Within \n24hrs", 4)),
-  "UpDownType" = rep(c("Space1", "Space2", "Space3", "Space4"), 3),
-  "padj_simple" = NA,
-  "Log2(Odds Ratio)" = NA
-)
-colnames(spacers) <- colnames(alt_all)
-
-alt_all <- rbind(alt_all, spacers)
-
-alt_all$UpDownType <- factor(alt_all$UpDownType)
-alt_all$UpDownType <- factor(alt_all$UpDownType, 
-                                      levels = levels(alt_all$UpDownType)[c(6,5,9,4,3,10,2,1,11,14,13,12,8,7)])
-
-myColor <- colorRampPalette(c("steelblue", "white", "red"))(50)
-myBreaks <- c(seq(min(alt_all$`Log2(Odds Ratio)`, na.rm = T), 0, 
-                  length.out=ceiling(50/2)), 
-              seq(max(alt_all$`Log2(Odds Ratio)`, na.rm = T)/50, 
-                  max(alt_all$`Log2(Odds Ratio)`, na.rm = T), 
-                  length.out=floor(50/2)))
-
-alt_all$FirstRegulation <- factor(alt_all$FirstRegulation)
-alt_all$FirstRegulation <- factor(alt_all$FirstRegulation, 
-                                  levels = levels(alt_all$FirstRegulation)[c(3:1)])
-
-
-ggplot(alt_all) + aes(x = FirstRegulation, y = UpDownType, size = padj_simple, fill = `Log2(Odds Ratio)`) +
-  geom_point(color = "grey30", shape = 21) +
-  xlab("") +
-  #ylab("") +
-  scale_size_discrete(range = c(9,17), limits = c("p<0.1", "p<0.05", "p<0.01", "p<0.001", "p<0.0001")) +
-  scale_fill_gradient2(low = "steelblue", mid = "white", high = "red") +
-  theme_minimal() +
-  theme(legend.key.size = unit(1.4, "line"),
-        legend.title = element_text(size=18),
-        legend.text = element_text(size=18),
-        axis.text.x = element_text(size=22),
-        axis.text.y = element_blank()
-  )
-
-
-#portrait:
-alt_all$FirstRegulation <- factor(alt_all$FirstRegulation)
-alt_all$FirstRegulation <- factor(alt_all$FirstRegulation, 
-                                           levels = levels(alt_all$FirstRegulation)[c(1,3,2)])
-
-ggplot(alt_all) + aes(y = FirstRegulation, x = UpDownType, size = padj_simple, fill = `Log2(Odds Ratio)`) +
-  geom_point(color = "grey30", shape = 21) +
-  xlab("") +
-  ylab("") +
-  scale_size_discrete(range = c(9,17), limits = c("p<0.1", "p<0.05", "p<0.01", "p<0.001", "p<0.0001")) +
-  scale_fill_gradient2(low = "steelblue", mid = "white", high = "red") +
-  theme_minimal() +
-  theme(legend.key.size = unit(1.4, "line"),
-        legend.title = element_text(size=18),
-        legend.text = element_text(size=18),
-        axis.text.x = element_text(size=22),
-        axis.text.y = element_blank()
-  )
-
-
+    
 #### % of DEGs per biotype ####
 
 #miRNA expression from small RNAseq, 10RPMM cut off for expression:
@@ -1364,7 +622,7 @@ length(unique(rpm_allmiRs_annotated$nameStars))#358unique miRNAs expressed
 22/338*100 #6.5% of miRNAs change over time
 
 
-#probs lower than the lnc/PCG equivalent?
+#lnc/PCG equivalent
 table(unique(fpkm_allG[,c(2,58)])$GeneClassUpdate)
 table(fpkm_allGDE$Simple)
 
@@ -1549,10 +807,3 @@ ggplot(trial) + aes(x = variable, y = value, color = geneSetII) +
   theme_minimal() +
   theme(legend.position = "none",
         text = element_text(size =15))
-
-#### save gene lists ####
-
-#for nuc/cyto, no MSTRG, no suffix
-#write.csv(gsub("\\.[0-9]*", "", filter(fpkm_allGDE, grepl("Lnc|fide", GeneClassUpdate))$EnsID), "DELncs.csv", row.names = F)
-#write.csv(filter(fpkm_allGDE_Upwithin_4, grepl("Lnc|fide", GeneClassUpdate))$EnsID, "earlyInducedLncs.csv")
-#write.csv(filter(fpkm_allGDE_Upwithin_4, grepl("Lnc|fide", GeneClassUpdate))$EnsID, "earlyInducedLncs.csv")
