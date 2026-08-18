@@ -1,7 +1,7 @@
 #obtain CAGE sites for timecourse lncRNAs for
 #a) confirming annotations
 #b) enhancer annotation
-#c) novel lncRNAs in FANTOM if needed
+#c) additional validation for non-GENCODE lncRNAs in FANTOM
 #d) comparing to their timecourse data
 #e) more accurate definitions of neighbours (TSS-TSS distance)
 
@@ -241,5 +241,6 @@ allLncs_BestCAGE$type <- "GENCODE"
 allLncs_BestCAGE$type[grepl("MSTRG", allLncs_BestCAGE$EnsID)] <- "Newly-assembled"
 allLncs_BestCAGE <- allLncs_BestCAGE[,-16]
 
+#take to PT2-6
 #write.csv(allLncs_BestCAGE, "allLncs_BestCAGE_2026.csv", row.names = F)
 #write.csv(allLncs_BestCAGE_Valid, "allLncs_BestCAGE_Valid_2026.csv", row.names = F)
