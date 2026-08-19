@@ -4,6 +4,8 @@ library(ggplot2)
 library(tidyr)
 library(reshape2)
 
+#SEE CHUNK TITLES FOR WHERE TO START FIGURE CREATION 
+
 #aims
 #1 which timecourses show similar features in terms of
 #a) no. DEGs over time
@@ -783,7 +785,7 @@ ggplot(IEGWaveBias, aes(x = FirstRegulation)) +
   theme(text = element_text(size = 15))
 
 
-#### (to review) combined figure ####
+#### combined figure ####
 
 #combined figure:
 AllTypesWaveBias <- rbind(IEGWaveBias, CCWaveBias)
@@ -1156,71 +1158,7 @@ AllPCG_AllPCG_1 <- trial
 #write.csv(AllPCG_AllPCG_1, "AllPCG_AllPCG_1_moLPS_2026.csv", row.names = F)
 
 
-#### (needs revisit) Compare to control lncs, and SVSMC pairs ####
-
-#compare to control cis lncs
-ControlCisLncs <- read.csv("\\\\cmvm.datastore.ed.ac.uk/cmvm/scs/groups/lncRNA_orthology/Timecourse/ControlCisLncs.csv")
-
-expressed_moLPS <- filter(moLPS_CPM, rowMax(as.matrix(moLPS_CPM[,c(13:16)])) >1)
-sum(gsub("\\.[0-9]*", "", expressed_moLPS$geneID) %in% ControlCisLncs$x)#29 expressed
-sum(unique(gsub("\\.[0-9]*", "", moLPS_DEGs_DE$CAT_geneID)) %in% ControlCisLncs$x)#5 are DE
-sum(unique(gsub("\\.[0-9]*", "", CoRegPairs_04_48_24_extended_moLPS$AnchorGene)) %in% ControlCisLncs$x)#2 in CClncs
-
-
-#shared cis candidates between datasets:
-CoRegPairs_04_48_24_extended <- read.csv("\\\\cmvm.datastore.ed.ac.uk/cmvm/scs/groups/lncRNA_orthology/Timecourse/CoRegPairs_04_48_24_extendedIII.csv")
-
-#insert FANTOM ID where possible:
-Enhancer_lociII <- read.csv("\\\\cmvm.datastore.ed.ac.uk/cmvm/scs/groups/lncRNA_orthology/Timecourse/Enhancer_lociIItime.csv", header = T)
-CoRegPairs_04_48_24_extended <- unique(merge(Enhancer_lociII[,c(1,14)], CoRegPairs_04_48_24_extended, by = "EnsID", all.y = T))
-
-CoRegPairs_04_48_24_extended_moLPS$pairsII <- paste(
-  gsub("\\.[0-9]*", "", CoRegPairs_04_48_24_extended_moLPS$AnchorGene),
-  gsub("\\.[0-9]*", "", CoRegPairs_04_48_24_extended_moLPS$geneID),
-  sep = "-"
-)
-
-CoRegPairs_04_48_24_extended$pairsII <- paste(
-  gsub("\\.[0-9]*", "", CoRegPairs_04_48_24_extended$FANTOM_ID),
-  gsub("\\.[0-9]*", "", CoRegPairs_04_48_24_extended$EnsID.y),
-  sep = "-"
-)
-
-
-#11 x pairs found in both
-sum(CoRegPairs_04_48_24_extended_moLPS$pairsII %in% CoRegPairs_04_48_24_extended$pairsII)
-
-filter(CoRegPairs_04_48_24_extended, pairsII %in% CoRegPairs_04_48_24_extended_moLPS$pairsII)[,c(32,11)]
-#INKILN is notable, NR2F2-AS1 and PITPNA-AS1 key loci, latter hits SERPINF1 which is not classed as influential (or a cis target) in SMC (locus is highlighted by other approach)
-11/248 #4% of SVSMC pairs are common
-11/834 #1% of moLPS pairs are common
-
-
-#12x cclncRNAs predicted in both
-sum(unique(gsub("\\.[0-9]*", "", CoRegPairs_04_48_24_extended_moLPS$AnchorGene)) %in% gsub("\\.[0-9]*", "", CoRegPairs_04_48_24_extended$FANTOM_ID))
-length(unique(CoRegPairs_04_48_24_extended$FANTOM_ID))#106, but one is NA
-12/106 #11% of cclncRNAs are found in both
-length(unique(CoRegPairs_04_48_24_extended_moLPS$AnchorGene))#324
-12/324 #4% of cclncRNAs are fond in both
-
-
-#25X cclncRNA targets in both
-sum(unique(gsub("\\.[0-9]*", "", CoRegPairs_04_48_24_extended_moLPS$geneID)) %in% gsub("\\.[0-9]*", "", CoRegPairs_04_48_24_extended$EnsID.y))
-length(unique(CoRegPairs_04_48_24_extended$EnsID.y))#106, but one is NA
-25/236 #11% of cclncRNAs are found in both
-length(unique(CoRegPairs_04_48_24_extended_moLPS$geneID))#532
-25/532 #5% of cclncRNAs are fond in both
-
-#consider overlapping the GO terms too - handle this later on through all datasets
-
-
-#### Recreate the SVSMC analysis - import necessary table here ####
-
-#Temporal bias vs. other DEGs
-#Elevation in FC for lnc targets vs. other PCGs in early phase
-#Increased chance of DE PCG neighbour for DE lnc targets vs other lncs* and DE PCGs in early phase
-#GO terms
-# *required HiC/eQTL to work
+#### (START HERE FOR FIGURES) Recreate the SVSMC analysis - import necessary table here ####
 
 #need DEGs:
 #write.csv(moLPS_DEGs_DE, "moLPS_DEGs_DE_2026.csv", row.names = F)
@@ -1234,7 +1172,7 @@ length(unique(CoRegPairs_04_48_24_extended_moLPS$geneID))#532
 #expressed genes table:
 #write.csv(moLPS_CPM[,c(36,26:35)], "moLPS_CPM_2026.csv", row.names = F)
 
-#import (needs changing on revisit):
+#import :
 moLPS_DEGs_DE <- read.csv("\\\\cmvm.datastore.ed.ac.uk/cmvm/scs/groups/lncRNA_orthology/Timecourse/GeneralEffect_FANTOM_ER/moLPS_DEGs_DE_2026.csv")
 moLPS_CPM <- read.csv("\\\\cmvm.datastore.ed.ac.uk/cmvm/scs/groups/lncRNA_orthology/Timecourse/GeneralEffect_FANTOM_ER/moLPS_CPM_2026.csv")
 AllLNC_AllPCG_1 <- read.csv("\\\\cmvm.datastore.ed.ac.uk/cmvm/scs/groups/lncRNA_orthology/Timecourse/GeneralEffect_FANTOM_ER/AllLNC_AllPCG_1_moLPS_2026.csv")
@@ -1245,7 +1183,7 @@ GeneBiotypes$CAT_geneClassII <- GeneBiotypes$CAT_geneClass
 GeneBiotypes$CAT_geneClassII[
   grepl("lncRNA", GeneBiotypes$CAT_geneClassII)] <- "lncRNA"
 
-#n.b. (START FROM HERE ON RETURN)
+
 moLPS_DEGs_DE_Upwithin_2 <- filter(moLPS_DEGs_DE, RegulationStart == "Induced <2hrs")
 moLPS_DEGs_DE_Downwithin_2 <- filter(moLPS_DEGs_DE, RegulationStart == "Repressed <2hrs")
 
@@ -1735,95 +1673,6 @@ ggplot(trial) + aes(x = value, y = variable) +
   theme_minimal() +
   scale_x_continuous(breaks = seq(0,40,20), limits = c(0,45)) +
   theme(text = element_text(size =20))
-
-
-#
-#### all co-regulated (time-agnostic) ####
-
-#plot enrichment of cis lnc, non cis lnc, e cis lnc, non-e cis lnc:
-#plot genes per cluster
-
-CoReg <- filter(AllLNC_AllPCG_1, AnchorGene %in% moLPS_DEGs_DE$CAT_geneID, geneID %in% moLPS_DEGs_DE$CAT_geneID)
-
-#cis lnc
-moLPS_DEGs_DE$CoRegLnc <- moLPS_DEGs_DE$CAT_geneClassII
-moLPS_DEGs_DE$CoRegLnc[moLPS_DEGs_DE$CAT_geneID %in% CoReg$AnchorGene] <- "CoRegLnc"
-table(moLPS_DEGs_DE$CoRegLnc)
-
-Cluster_biotype <- as.data.frame(table(moLPS_DEGs_DE$CoRegLnc, moLPS_DEGs_DE$RegulationStart))
-
-#bias of category:
-table(moLPS_DEGs_DE$CoRegLnc)["CoRegLnc"]
-table(moLPS_DEGs_DE$CoRegLnc)/dim(moLPS_DEGs_DE)[1]*100
-
-trial <- filter(Cluster_biotype, Var1 == "CoRegLnc")
-trial$Freq/table(moLPS_DEGs_DE$RegulationStart)*100
-#looks like strong biases
-
-#fisher test: background DE PCGs, selection cluster, hit lncRNA
-trial$selection <- table(moLPS_DEGs_DE$RegulationStart)
-
-ClusterNames <- trial$Var2
-
-#order by time:
-trial$timeQuery <- as.numeric(gsub("hrs", "", sapply(strsplit(as.character(trial$Var2), "[<-]"), "[[",2)))
-trial$UpDown <- sapply(strsplit(as.character(trial$Var2), " "), "[[",1)
-trial <- trial[order(trial$UpDown, trial$timeQuery),]
-
-LncEnrich_cluster <- list()
-
-for (i in 1:length(ClusterNames)){
-  a <- trial[i,3]
-  b <- trial[i,4]
-  c <- table(moLPS_DEGs_DE$CoRegLnc)["CoRegLnc"]
-  d <- dim(moLPS_DEGs_DE)[1]
-  
-  LncEnrich_cluster[[i]] <- data.frame(fisher.test(data.frame("LncRNA" = c(a,b-a),
-                                                              "other" = c(c-a,d-c-(b-a)), 
-                                                              row.names = c("Cluster", "other")), alternative = "greater")$est,
-                                       fisher.test(data.frame("LncRNA" = c(a,b-a),
-                                                              "other" = c(c-a,d-c-(b-a)), 
-                                                              row.names = c("Cluster", "other")), alternative = "greater")$p)
-}
-names(LncEnrich_cluster) <- ClusterNames
-triali <- bind_rows(LncEnrich_cluster, .id = "Cluster")
-rownames(triali) <- NULL
-colnames(triali) <- c("Cluster", "OR", "p")
-triali$p_adj <- p.adjust(triali$p, method = "BH")
-#Induced first timepoint, rarely at second
-#2x significant biases
-
-#percentage plots
-trial$FirstRegulation <- c("0-2hrs", "2-4hrs", "4-6hrs", "6-8hrs", "8-12hrs", "12-16hrs", "16-24hrs", "24-36hrs", "36-48hrs")
-trial$FirstRegulation <- as.factor(trial$FirstRegulation)
-trial$FirstRegulation <- factor(trial$FirstRegulation, levels = levels(trial$FirstRegulation)[c(1,4,7,8,9,2,3,5,6)])
-trial$UpDown <- sapply(sapply(as.character(trial$Var2), strsplit, " "),"[[" , 1)
-trial$PercCategory <- trial$Freq/table(moLPS_DEGs_DE$CoRegLnc)["CoRegLnc"]*100
-trial$PercBackground <- trial$selection/dim(moLPS_DEGs_DE)[1]*100
-
-CoRegLncWaveBias <- cbind(trial[,-c(2)], triali[,-c(1)])
-
-ggplot(CoRegLncWaveBias, aes(x = FirstRegulation)) +
-  geom_col(data = filter(CoRegLncWaveBias, grepl("Induced", UpDown)), 
-           aes(y = PercCategory, fill = UpDown)) +
-  geom_col(data = filter(CoRegLncWaveBias, grepl("Induced", UpDown)), 
-           aes(y = PercBackground), fill = NA, color = "grey30", linetype = "dashed") +
-  geom_label(data = filter(CoRegLncWaveBias, grepl("Induced", UpDown)), 
-             aes(y = PercCategory, label = Freq), size = 5) +
-  geom_col(data = filter(CoRegLncWaveBias, grepl("Repressed", UpDown)), 
-           aes(y = -PercCategory, fill = UpDown)) +
-  geom_col(data = filter(CoRegLncWaveBias, grepl("Repressed", UpDown)), 
-           aes(y = -PercBackground), fill = NA, color = "grey30", linetype = "dashed") +
-  geom_label(data = filter(CoRegLncWaveBias, grepl("Repressed", UpDown)), 
-             aes(y = -PercCategory, label = Freq), size = 5) +
-  ylab("% DE CoRegLncRNAs") +
-  xlab("") +
-  #scale_y_continuous(limits = c(-30,48),breaks = seq(-20,48, by = 20),
-  #                   labels = (c(seq(20, 0, by = -20), seq(20,48,by=20)))) +
-  theme_minimal() +
-  theme(text = element_text(size = 15))
-
-#basically same as lncs generally
 
 
 #
@@ -2680,28 +2529,3 @@ filter(GeneBiotypes, CAT_geneID %in% unique(EarlyInduced_CClncRNAs_CoUp_Targets_
 
 
 #
-#### examine early lncs/targets ####
-
-#add gene names
-trial <- merge(CoRegPairs_sameTimeframe_moLPS, GeneBiotypes[,1:3], by.x = "AnchorGene", by.y = "CAT_geneID")
-trial <- merge(trial, GeneBiotypes[,1:3], by.x = "geneID", by.y = "CAT_geneID")
-
-CoRegPairs_sameTimeframe_moLPS_early <- filter(trial, AnchorGene %in% moLPS_DEGs_DE_Upwithin_2$CAT_geneID,
-                                               geneID %in% moLPS_DEGs_DE_Upwithin_2$CAT_geneID)
-
-#notable targets: few/unclear
-#notable early lncs: few/unclear
-
-#control cis lncs:
-ControlCisLncs <- read.csv("\\\\cmvm.datastore.ed.ac.uk/cmvm/scs/groups/lncRNA_orthology/Timecourse/Write-ups/supplement/ControlCisLncs.csv", header = T)
-
-#0x identified in the spike of cis-acting lnc evidence
-CoRegPairs_sameTimeframe_moLPS_early_controlCisLncs <- filter(CoRegPairs_sameTimeframe_moLPS_early, 
-                                                              gsub("\\.[0-9]*", "", AnchorGene) %in% ControlCisLncs$Ens_ID)
-
-#up to 4hrs:
-CoRegPairs_sameTimeframe_moLPS_early2 <- filter(trial, AnchorGene %in% c(moLPS_DEGs_DE_Upwithin_2$CAT_geneID, moLPS_DEGs_DE_Upwithin_4$CAT_geneID),
-                                                geneID %in% c(moLPS_DEGs_DE_Upwithin_2$CAT_geneID, moLPS_DEGs_DE_Upwithin_4$CAT_geneID))
-
-#nothing extra is obvious, maybe TNFAIP3 showing up all the time... otherwise v distinct gene set
-

@@ -737,7 +737,3 @@ ggplot(filter(triali, !`Found in` == "SVSMC_only")) + aes(y = Var2, fill = `Foun
   theme_minimal() +
   theme(text = element_text(size=24))
 
-
-#### modifications ####
-
-#could add concordant lncs/PCGs
