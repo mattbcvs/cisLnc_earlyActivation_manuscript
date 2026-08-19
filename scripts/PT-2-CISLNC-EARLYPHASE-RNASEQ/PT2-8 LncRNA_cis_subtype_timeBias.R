@@ -242,9 +242,10 @@ closestNeighbour <- lapply(closestNeighbour, function(x){
 closestNeighbour <- bind_rows(closestNeighbour)
 closestNeighbour <- filter(closestNeighbour, !is.na(pairs))
 
+#overwrite neighbours object to just closest neighbours within 250kbp
+AllLNC_AllPCG_1 <- closestNeighbour
 
 #now get the cis candidates:
-AllLNC_AllPCG_1 <- closestNeighbour
 CoRegPairs_04_48_24_extended_naive <- filter(AllLNC_AllPCG_1,
                                              #AllLNC_AllPCG_1,
                                              (EnsID %in% c(fpkm_allGDE_Upwithin_4$EnsID, 
