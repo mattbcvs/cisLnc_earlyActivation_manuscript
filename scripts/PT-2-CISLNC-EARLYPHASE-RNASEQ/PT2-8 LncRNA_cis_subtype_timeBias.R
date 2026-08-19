@@ -333,7 +333,7 @@ table(fpkm_allGDE$RegulationStart)
 trial <- merge(CoRegPairs_04_48_24_extended_naive, fpkm_allGDE[,c(1,46)], by = "EnsID")
 trial <- merge(trial, fpkm_allGDE[,c(1,46)], by.x = "EnsID.y", by.y = "EnsID")
 
-write.csv(trial, "SuppTable3_CClncRNAs.csv")
+#write.csv(trial, "SuppTable3_CClncRNAs.csv")
 
 #### bias of lncs with same timeframe lnc 2D neighbours (i.e. naive approach first) ####
 
