@@ -242,9 +242,10 @@ closestNeighbour <- lapply(closestNeighbour, function(x){
 closestNeighbour <- bind_rows(closestNeighbour)
 closestNeighbour <- filter(closestNeighbour, !is.na(pairs))
 
+#overwrite neighbours object to just closest neighbours within 250kbp
+AllLNC_AllPCG_1 <- closestNeighbour
 
 #now get the cis candidates:
-AllLNC_AllPCG_1 <- closestNeighbour
 CoRegPairs_04_48_24_extended_naive <- filter(AllLNC_AllPCG_1,
                                              #AllLNC_AllPCG_1,
                                              (EnsID %in% c(fpkm_allGDE_Upwithin_4$EnsID, 
@@ -333,7 +334,7 @@ table(fpkm_allGDE$RegulationStart)
 trial <- merge(CoRegPairs_04_48_24_extended_naive, fpkm_allGDE[,c(1,46)], by = "EnsID")
 trial <- merge(trial, fpkm_allGDE[,c(1,46)], by.x = "EnsID.y", by.y = "EnsID")
 
-write.csv(trial, "SuppTable3_CClncRNAs.csv")
+#write.csv(trial, "SuppTable3_CClncRNAs.csv")
 
 #### bias of lncs with same timeframe lnc 2D neighbours (i.e. naive approach first) ####
 
