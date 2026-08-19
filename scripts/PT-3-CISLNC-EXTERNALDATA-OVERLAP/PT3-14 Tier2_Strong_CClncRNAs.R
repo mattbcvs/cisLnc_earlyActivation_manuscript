@@ -334,24 +334,6 @@ unique(sapply(strsplit(rownames(compare_overlap_early)[rowSums(compare_overlap_e
 pheatmap::pheatmap((compare_overlap_early), cluster_cols = F, cluster_rows = F, angle_col = "315", legend = F, fontsize_row = 9)
 
 
-#### enrichment of expected cis in HiC/corr/eQTL lncs? ####
-
-#only fair to use 250kbp
-length(unique(filter(SCClncRNAs, AbsDistLnc_PCG <250,
-                     (!loopMethod == "Neither" | 
-                       eQTLvalidations >0 | FANTOM_eQTL_Hon %in% "Significant Hon et al. 2017" | 
-                       spear_p_adj < 0.05))$EnsID))#83 lncs
-length(unique(filter(SCClncRNAs, AbsDistLnc_PCG <250,
-                     (!loopMethod == "Neither" | 
-                       eQTLvalidations >0 | FANTOM_eQTL_Hon %in% "Significant Hon et al. 2017" | 
-                       spear_p_adj < 0.05) &  !is.na(Sources))$EnsID))#10 lncs
-10/81 #12.3%
-
-14/124 #11.3%
-
-#not a great deal really
-
-
 #### enrichment of SCClncRNAs in 0-4hr induced lncRNAs vs. other DE lncRNAs ####
 
 length(unique(SCClncRNAs$EnsID))#87
@@ -372,117 +354,7 @@ fisher.test(data.frame("cisLnc" = c(a, b-a),
                        "Not"   = c(c-a, d-c-(b-a))), alternative = "greater")
 
 
-#### enrichment of enhancer lncRNAs amongst 0-4hr induced SCClncRNAs vs other 0-4hr induced lncs ####
-
-#add in eLncs
-Enhancer_lociII <- read.csv("\\\\cmvm.datastore.ed.ac.uk/cmvm/scs/groups/lncRNA_orthology/Timecourse/Enhancer_lociIItime_2026.csv", header = T)
-fpkm_allGDE$GeneClassUpdate[fpkm_allGDE$EnsID %in% filter(Enhancer_lociII, !is.na(EnhancerVerdict))$EnsID & fpkm_allGDE$V55 == "Bona fide lncRNA"] <- "ELnc"
-
-unique(filter(SCClncRNAs, Lnc_Cluster == "Induced <4hrs")$EnsID)#37
-unique(filter(SCClncRNAs, Lnc_Cluster == "Induced <4hrs", EnsID %in% filter(fpkm_allGDE, GeneClassUpdate == "ELnc")$EnsID)$EnsID)#15
-
-filter(fpkm_allGDE_Upwithin_4, GeneClassUpdate == "Bona fide lncRNA", EnsID %in% filter(fpkm_allGDE, GeneClassUpdate == "ELnc")$EnsID)$EnsID#23
-table(fpkm_allGDE_Upwithin_4$GeneClassUpdate)#65
-
-a <- 15
-b <- 37
-c <- 23
-d <- 65
-
-a/b #40% of 0-4hr SCClncRNAs are eLncs
-c/d #35% of 0-4hr DELs are elncs
-
-#not big enough enrich for sig
-fisher.test(data.frame("cisLnc" = c(a, b-a),
-                       "Not"   = c(c-a, d-c-(b-a))), alternative = "greater")
-
-
-
-#### GO/KEGG/REACTOME analysis same/later of 4hr lncs ####
-
-#potential for stronger bio signal amongst higher confidence pairs
-#will try same/later pairs first
-#note: potential interference from and MSTRG.24277 (all the CXCLs)
-
-#simple GO check, vs. all DEGs:
-
-#background of vs. all DEGs may give specificity (but also reduce power)
-fpkm_PCGDE <- filter(fpkm_allGDE, grepl("protein_coding", EnsType))
-
-#filter the scclncs
-EarlyInduced_SCClncRNAs_Targets <- filter(SCClncRNAs, Lnc_Cluster == "Induced <4hrs")
-
-#targets of early lncs vs all DEGs
-CoReg_DE <- enrichGO(gene         = unique(gsub("\\.[0-9]*", "", EarlyInduced_SCClncRNAs_Targets$EnsID.y)),
-                     universe      = gsub("\\.[0-9]*", "", fpkm_PCGDE$EnsID),
-                     keyType       = "ENSEMBL",
-                     OrgDb         = org.Hs.eg.db,
-                     ont           = "all",
-                     pAdjustMethod = "BH",
-                     pvalueCutoff  = 0.05,
-                     qvalueCutoff  = 0.05,
-                     readable      = TRUE)
-CoReg_DE_df <- as.data.frame(CoReg_DE)
-#terms of interest, but purely driven by cxcl
-
-#loosen the background, expressed PCGs:
-fpkm_PCG <- filter(fpkm_allG, grepl("protein_coding", EnsType))
-
-CoReg_DE2 <- enrichGO(gene         = unique(gsub("\\.[0-9]*", "", EarlyInduced_SCClncRNAs_Targets$EnsID.y)),
-                     universe      = gsub("\\.[0-9]*", "", fpkm_PCG$EnsID),
-                     keyType       = "ENSEMBL",
-                     OrgDb         = org.Hs.eg.db,
-                     ont           = "all",
-                     pAdjustMethod = "BH",
-                     pvalueCutoff  = 0.05,
-                     qvalueCutoff  = 0.05,
-                     readable      = TRUE)
-CoReg_DE2_df <- as.data.frame(CoReg_DE2)
-#few more genes, 5x loci involved in cytokine receptor binding (but still CXCL driven 4x genes)
-
-#could select one from each (highest abundance @4hrs)
-#AllTargets_loci1 <- filter(AllTargets_T2, grepl("CXCL8|^MT1E|^HOXA10|^HOXC6", EnsName.y))
-#AllTargets_loci <- filter(AllTargets_T2, !grepl("^CXCL|^MT1|^HOXA|^HOXC", EnsName.y))
-#AllTargets_loci_T2 <- rbind(AllTargets_loci, AllTargets_loci1)
-
-#fpkm_PCGDE_loci1 <- filter(fpkm_PCGDE, grepl("CXCL8|^MT1E|^HOXA10|^HOXC6", EnsName))
-#fpkm_PCGDE_loci <- filter(fpkm_PCGDE, !grepl("^CXCL|^MT1|^HOXA|^HOXC", EnsName))
-#fpkm_PCGDE_loci <- rbind(fpkm_PCGDE_loci, fpkm_PCGDE_loci1)
-
-#but feels messy
-#try KEGG/REACTOME, then move on
-
-#KEGG
-convertEnsEnt <- bitr(unique(fpkm_allG$EnsName), fromType = "SYMBOL", toType = "ENTREZID", OrgDb = "org.Hs.eg.db")
-
-CoReg_DE2_K <- enrichKEGG(gene = filter(convertEnsEnt, SYMBOL %in% EarlyInduced_SCClncRNAs_Targets$EnsName.y)$ENTREZID,
-                       universe = filter(convertEnsEnt, SYMBOL %in% fpkm_PCG$EnsName)$ENTREZID,
-                       pAdjustMethod = "BH",
-                       pvalueCutoff  = 0.05,
-                       qvalueCutoff  = 0.05)
-CoReg_DE2_K_df <- data.frame(CoReg_DE2_K)
-unique(CoReg_DE2_K_df$Description)
-filter(convertEnsEnt, 
-       ENTREZID %in% unlist(strsplit(filter(CoReg_DE2_K_df, Description == unique(CoReg_DE2_K_df$Description)[2])$geneID, 
-                                     split = "/")))
-#essentially identifies same genes pathways
-
-#REACTOME
-library(ReactomePA)
-CoReg_DE2_R <- enrichPathway(gene          = unique(filter(convertEnsEnt,SYMBOL %in% EarlyInduced_SCClncRNAs_Targets$EnsName.y)$ENTREZID),
-                          universe      = unique(filter(convertEnsEnt,SYMBOL %in% fpkm_PCG$EnsName)$ENTREZID),
-                          organism = "human",
-                          pvalueCutoff = 0.05,
-                          qvalueCutoff  = 0.05,
-                          readable      = TRUE)
-CoReg_DE2_R_df <- as.data.frame(CoReg_DE2_R)
-#as previous
-
-
 #### GO/KEGG/REACTOME analysis co-induced with 4hr lncs ####
-
-#try just same (n.b. almost all are co-induction)
-#note: potential interference from and MSTRG.24277 (all the CXCLs)
 
 #simple GO check, vs. all DEGs:
 
@@ -600,7 +472,7 @@ FANT_S10_SMC_G <- gsub("\\.[0-9]*", "", unlist(strsplit(FANT_S10_SMC$associated_
 FANT_S10_VSMC <- FANT_S10_SMC[-c(1,12:17),]
 FANT_S10_VSMC_G <- gsub("\\.[0-9]*", "", unlist(strsplit(FANT_S10_VSMC$associated_geneID, ",")))
 
-#Epigenetic modifiers (LISA has some definitions but not well described, CRdb seems recent and fine)
+#Epigenetic modifiers
 CRdb_dataB <- read.csv("\\\\cmvm.datastore.ed.ac.uk/cmvm/scs/groups/lncRNA_orthology/Timecourse/CRdb Data Browse.csv")
 
 #add HMGA2 and FOXL1 to this list, unclear why not in there...

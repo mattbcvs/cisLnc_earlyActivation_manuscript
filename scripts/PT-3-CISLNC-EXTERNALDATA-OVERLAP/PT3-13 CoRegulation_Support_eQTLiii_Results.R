@@ -13,67 +13,9 @@ eQTL_SuppTable <- filter(eQTL_SuppTable, !grepl("_All", Run))
 #save for supplement:
 #write.csv(eQTL_SuppTable, "eQTL_SuppTable_2026.csv", row.names = F)
 
-#p adjust for info: none sig
-summary(p.adjust(eQTL_SuppTable$p, method = "BH"))
 
-#just on runs with a few eQTL linked in background: still none sig
-summary(p.adjust(filter(eQTL_SuppTable, c >10)$p, method = "BH"))
-
-#probs just skip, accept it is predictions
-#remember that FANTOM validates (hopefully) (expected cis-acting group may also help)
-#and that TransCistor is FDR <0.25
-
-
-#### (skip) plot 1, total eQTL-confirmed pairs found per dataset ####
-
-#how many eQTL-linked co-reg pairs per lnc cluster? some clusters better covered than others?
-
-#skipping because think it is handled better by tile plot later
-
-#expecting that Up4 has the most co-reg pairs with eQTL
-#(therefore supporting strongest cis-reg potential)
-#Locus contains all possible overlaps so select this
-#Ignore delayed PCGs for this
-pairsPerDataset <- filter(eQTL_SuppTable, grepl("Locus", Run), !grepl("Del", Run))
-
-#ranking certainly useful - SMC heavy tissues etc
-pairsPerDataset_Sum <- aggregate(a ~ tissue, pairsPerDataset, sum)
-
-#numbers of total pairs at end too
-pairsPerDataset <- merge(pairsPerDataset, pairsPerDataset_Sum, by = "tissue", all.x = T)
-
-#order by pairs found in tissue
-pairsPerDataset$tissue <- factor(pairsPerDataset$tissue)
-pairsPerDataset <- pairsPerDataset[order(pairsPerDataset$tissue),]
-
-pairsPerDataset$tissue <- factor(pairsPerDataset$tissue, levels(pairsPerDataset$tissue)[order(unique(pairsPerDataset[,c(1,9)])$a.y)])
-
-#eQTL-linked coreg pairs per tissues first
-ggplot(unique(filter(pairsPerDataset[,c(1,9)], a.y >0))) + aes(y = tissue, x = a.y, label = a.y) +
-  geom_bar(stat = "identity") +
-  geom_text()
-
-#gives indication of datasets with most power to detect an enrichment
-
-#with clusters coloured:
-pairsPerDataset$LncCluster <- as.factor(sapply(strsplit(pairsPerDataset$Run, "_"), "[[", 2))
-pairsPerDataset$LncCluster <- factor(pairsPerDataset$LncCluster, levels(pairsPerDataset$LncCluster)[c(5,2,6,3,4,1)])
-  
-ggplot(filter(pairsPerDataset, a.y >0)) + aes(y = tissue, x = a.x, fill = LncCluster) +
-  geom_bar(stat = "identity") + #, position = "fill") +
-  #scale_x_continuous(breaks = seq(0,1,0.25)) + #, labels = scales::percent_format()) +
-  geom_text(data = unique(filter(pairsPerDataset[,c(1,9)], a.y >0)), inherit.aes = F, 
-            aes(x = a.y+10, y = tissue, label = a.y),
-            size = 3) + theme_minimal() +
-  xlab("eQTL-supported CClncRNA-target pairs") +
-  ylab("")
-
-#indicates which lnc clusters have most power to detect an enrichment - i.e induced within 4
-
-#inverse useful? maybe not yet would have to find the supported pairs - this will come later...
-
-
-#### no. successful tests per lnc cluster ####
+#
+#### no. successful tests per lnc cluster (Fig.3E) ####
 
 #split by lnc timing:
 eQTL_SuppTable$LncCluster <- sapply(strsplit(eQTL_SuppTable$Run, "_"), "[[", 2)
@@ -91,11 +33,6 @@ eQTL_SuppTable$LncCluster <- factor(eQTL_SuppTable$LncCluster, levels(eQTL_SuppT
 eQTL_SuppTable$OverlapType <- as.factor(sapply(strsplit(eQTL_SuppTable$Run, "_"), "[[", 3))
 eQTL_SuppTable$OverlapType <- factor(eQTL_SuppTable$OverlapType, levels(eQTL_SuppTable$OverlapType)[c(3,4,1,2,5,6)])
 
-#optional: including a requirement for certain number of eQTL linked pairs to be found
-#trialling without
-#and a quite decent p considering lack of adjustment
-#successTests <- unique(filter(eQTL_SuppTable, p < 0.05, c >=5))#28
-#successTests <- unique(filter(eQTL_SuppTable, p < 0.05, c >=4))#33
 successTests <- unique(filter(eQTL_SuppTable, p < 0.05))#39 
 
 
@@ -137,106 +74,9 @@ ggplot(eQTL_SuppTable) + aes(x = OverlapType, y = -log10(p)+0.001, color = ORii)
   ylab("eQTL Enrichment in\nCClncRNA-targets (-log10p)") +
   xlab("eQTL-lncRNA Overlap Type")
 
-#easy to draw conclusions of
-#CClncRNAs from the early induced cluster were significantly enriched with eQTL connections to their predicted 
-#co-regulated targets across a wider number of tissues. particularly for eQTLs in promoter, exon or sub-regions
 
-#far fewer eQTL connections were found for CClncRNAs from other clusters
-
-#plot 1 or 2 can be decided... former is simpler and conveys the message
-
-#tissues with best pred value can be handled in next figure
-
-
-#### dotplot of OR/p ####
-
-#per lnc cluster, starting with 4up
-#for tissues from same timeframe with a successful test only
-#exclude tissues with only ~1-4 pairs linked, too few to be of note
-successTissues <- unique(filter(eQTL_SuppTable, p < 0.01, c >=10, grepl("Up4", Run), !grepl("Del", Run))$tissue)
-
-successTissuesAll <- filter(eQTL_SuppTable, grepl("Up4", Run), !grepl("Del", Run), tissue %in% successTissues)
-successTissuesAll$OR[successTissuesAll$c <10] <- NA
-successTissuesAll$p[successTissuesAll$c <10] <- NA
-
-#OR values to plot:
-successTissuesAll$ORii <- successTissuesAll$OR
-successTissuesAll$ORii[successTissuesAll$ORii == Inf] <- max(successTissuesAll$ORii[!successTissuesAll$ORii == Inf], na.rm = T)
-successTissuesAll$ORii[successTissuesAll$OR >15] <- 15
-#successTissuesAll$ORii <- log2(successTissuesAll$ORii)
-
-#p values to plot
-successTissuesAll$p_simple <- NA
-#successTissuesAll$p_simple[successTissuesAll$p < 0.05] <- "p<0.05"
-successTissuesAll$p_simple[successTissuesAll$p < 0.01] <- "p<0.01"
-#successTissuesAll$p_simple[successTissuesAll$p < 0.001] <- "p<0.001"
-#successTissuesAll$p_simple[successTissuesAll$p < 0.0001] <- "p<0.0001"
-table(successTissuesAll$p_simple)
-
-#number of pairs to plot:
-successTissuesAll$a_ii <- successTissuesAll$a
-successTissuesAll$a_ii[successTissuesAll$c <10] <- NA
-successTissuesAll$a_ii[successTissuesAll$p >= 0.01] <- NA
-
-#order tissue factor by p? strongest odds ratio? or most pairs...? (specificity or targets found...)
-aggregate(p ~ tissue, successTissuesAll, min)
-order(aggregate(p ~ tissue, successTissuesAll, min)$p)
-
-successTissuesAll$tissue[grepl("Brain_Nucleus", successTissuesAll$tissue)] <- "Brain_Nucleus_acc."
-successTissuesAll$tissue[grepl("Esophagus_Gas", successTissuesAll$tissue)] <- "Esophagus_Gastroeso."
-successTissuesAll$tissue <- as.factor(successTissuesAll$tissue)
-successTissuesAll$tissue <- factor(successTissuesAll$tissue, levels(successTissuesAll$tissue)[order(aggregate(p ~ tissue, successTissuesAll, min)$p)])
-
-#re-order x axis:
-successTissuesAll$OverlapType <- factor(successTissuesAll$OverlapType, levels(successTissuesAll$OverlapType)[c(6:1)])
-
-
-#x axis tissues, y axis overlap type:
-ggplot(successTissuesAll) + aes(x = tissue, y = OverlapType, size = p_simple, fill = ORii) +
-  geom_point(color = "grey30", shape = 21) +
-  geom_text(inherit.aes = F, aes(x = tissue, y = OverlapType, label = a_ii)) +
-  xlab("") +
-  ylab("") +
-  scale_size_discrete(range = c(13,13), limits = c(#"p<0.1", 
-   #"p<0.05", 
-    "p<0.01", 
-    "p<0.001"#, "p<0.0001"
-    )) +
-  scale_fill_gradient2(low = "steelblue", mid = "white", high = "red") +
-  theme_minimal() +
-  theme(legend.key.size = unit(1.4, "line"), 
-        #plot.margin = margin_auto(2, unit = "cm"),
-        legend.text = element_text(size=15),
-        legend.title = element_text(size=15),
-        axis.text.x = element_text(size=15, angle =315, hjust = 0),
-        axis.text.y = element_text(size=15)
-  ) + labs(fill = "Odds Ratio:\neQTL validation of\nCClncRNA-target pairs", size = "p")
- 
-#following written with p <0.05, and c >5 (i.e. quite loose)
-
-#will need to explain why brain prominent and SMC biobank not..
-
-#spoiler from next section: seems driven by 2x lncs with 5x pairs each in same locus
-
-#presumably enhancers/genes related to smth generic like prolif/migration/immune/ECM
-#but could also be neuron development or smth (overlaps vasc dev?)
-#SMC enriched tissues also found
-
-#check for deconvolution of these bulks...
-
-#https://pmc.ncbi.nlm.nih.gov/articles/PMC8051643/ 2020 paper trying cellX
-
-#notably, brain has lots of osteoblast cells, would they explain?
-#otherwise neuron is obviously v enriched
-#thyroid unclear
-
-#influenced by cell types, and pathways used in the tissue
-
-#confirmed pairs by tissue may show a pattern
-#(e.g. may expect arterial/esophagus vs. brain)
-
-
-#### confirmed pairs (requires codes 11/12) ####
+#
+#### confirmed pairs (requires codes PT2-11/PT2-12) ####
 
 #reimport for ease
 GTEX_SuppTable_df <- read.csv("\\\\cmvm.datastore.ed.ac.uk/cmvm/scs/groups/lncRNA_orthology/Timecourse/GTEX_SuppTable_df250.csv")
@@ -352,8 +192,6 @@ for (i in 1:length(successTests_GTEX$tissue)){
 
 #### add pairs for Shu Biobank ####
 
-#basal SMC issue?
-#successTests_Shu <- filter(eQTL_SuppTable, tissue == "SMC_biobank", p < 0.05, c >= 5)
 successTests_Shu <- filter(eQTL_SuppTable, tissue == "SMC_biobank", p < 0.05)
 
 AllLNC_AllPCG_2d3d_250$pairs_merge <- gsub("\\.[0-9]*$", "", AllLNC_AllPCG_2d3d_250$pairs)
@@ -385,7 +223,7 @@ for (i in 1:length(successTests_Shu$tissue)){
 }
 
 
-##### add columns to table #### 
+#### add columns to table, save all cclnc eQTL pairs #### 
 
 CoRegPairs_eQTL_checked <- filter(AllLNC_AllPCG_2d3d_250,
                                      (EnsID %in% fpkm_allGDE_within_4$EnsID & EnsID.y %in% fpkm_allGDE$EnsID) |
@@ -422,18 +260,13 @@ CoRegPairs_eQTL_checked$eQTLvalidations <- rowSums(
     22:dim(CoRegPairs_eQTL_checked)[2]
   )])
 
-#probs no use saving the pairs without eQTL confirmation
-#write.csv(CoRegPairs_eQTL_checked, "CoRegPairs_eQTL_checked.csv",row.names = F)
-
-#CoRegPairs_04_extendedSame_eQTL <- read.csv("CoRegPairs_04_extendedSame_eQTL.csv")
 
 CoRegPairs_eQTL_supported <- filter(CoRegPairs_eQTL_checked, eQTLvalidations > 0)
 
 #write.csv(CoRegPairs_eQTL_supported, "CoRegPairs_eQTL_supported.csv",row.names = F)
 
 # some stats
-length(unique(CoRegPairs_eQTL_supported$pairs)) #67 eQTL-validated pairs, none are dominating, shared pattern
-67/282 #24% of the cclncRNA pairs
+length(unique(CoRegPairs_eQTL_supported$pairs)) #67 eQTL-validated pairs
 length(unique(CoRegPairs_eQTL_supported$EnsID)) #43 lncRNAs
 
 # distance of eQTL-confirmed pairs:
@@ -441,8 +274,30 @@ summary(CoRegPairs_eQTL_supported$AbsDistLnc_PCG) #90kbp median
 summary(CoRegPairs_eQTL_checked$AbsDistLnc_PCG) #120kbp median, bit longer
 
 
-#### overlap identified eQTL-supported pairs with those from FANTOM analysis ####
+#### overlap identified eQTL-supported pairs with those from FANTOM analysis (Fig.3F) ####
 
+CoRegPairs_eQTL_supported <- read.csv("\\\\cmvm.datastore.ed.ac.uk/cmvm/scs/groups/lncRNA_orthology/Timecourse/CoRegPairs_eQTL_supported.csv")
+
+fpkm_allGDE <- read.csv("\\\\cmvm.datastore.ed.ac.uk/cmvm/scs/groups/lncRNA_orthology/Timecourse/fpkm_allGDE_2026filt.csv", header = T)
+length(unique(fpkm_allGDE$EnsID))
+
+fpkm_allGDE_Upwithin_4 <- filter(fpkm_allGDE, RegulationStart == "Induced <4hrs")
+fpkm_allGDE_Downwithin_4 <- filter(fpkm_allGDE, RegulationStart == "Repressed <4hrs")
+fpkm_allGDE_within_4 <- rbind(fpkm_allGDE_Upwithin_4, fpkm_allGDE_Downwithin_4)
+
+fpkm_allGDE_Upwithin_8 <- filter(fpkm_allGDE, RegulationStart == "Induced 4-8hrs")
+fpkm_allGDE_Downwithin_8 <- filter(fpkm_allGDE, RegulationStart == "Repressed 4-8hrs")
+fpkm_allGDE_within_8 <- rbind(fpkm_allGDE_Upwithin_8, fpkm_allGDE_Downwithin_8)
+
+fpkm_allGDE_Upwithin_24 <- filter(fpkm_allGDE, RegulationStart == "Induced 8-24hrs")
+fpkm_allGDE_Downwithin_24 <- filter(fpkm_allGDE, RegulationStart == "Repressed 8-24hrs")
+fpkm_allGDE_within_24 <- rbind(fpkm_allGDE_Upwithin_24, fpkm_allGDE_Downwithin_24)
+
+CoRegPairs_eQTL_checked <- filter(AllLNC_AllPCG_2d3d_250,
+                                  (EnsID %in% fpkm_allGDE_within_4$EnsID & EnsID.y %in% fpkm_allGDE$EnsID) |
+                                    (EnsID %in% fpkm_allGDE_within_8$EnsID & EnsID.y %in% c(fpkm_allGDE_within_8$EnsID, 
+                                                                                            fpkm_allGDE_within_24$EnsID)) |
+                                    (EnsID %in% fpkm_allGDE_within_24$EnsID & EnsID.y %in% fpkm_allGDE_within_24$EnsID))
 #compare to Hon 2017
 #slight diff method - they looked for any eQTL-linked pairs which were significantly more co-expressed 
 #than background shuffled pairs
@@ -501,14 +356,6 @@ fisher.test(data.frame("cisLnc" = c(a, b-a),
                        "Not"   = c(c-a, d-c-(b-a))), alternative = "greater")
 #p = 0.04, OR = 3
 
-# i.e. 15 of the FANTOM eQTL linked lnc-PCGs are found in the co-regs used to test eQTLs
-# my approach identifies 7 of these
-
-#may make sense to fold in to a section on expected cis-acting (e.g. with Trancistor etc)
-
-#does unfortunately mean that the eQTL method is a bit unvalidated
-
-#Genehancer connections? maybe if the "expected cis-acting" bit falls through later
 
 DEL_PCG_type <- rbind("eQTL-supported CClncRNA-\n-target pairs (this study)" = c(a,b, a/b),
                       "All CClncRNA-target pairs" = c(c,d, c/d))
@@ -535,13 +382,9 @@ ggplot(DEL_PCG_typei) + aes(y = Var1, x = value) +
 
 
 #
-#### pairs per tissue heatmap ####
+#### pairs per tissue heatmap (Fig.S5) ####
 
 #visualise which tissues have best predictive value - number of pairs recovered
-#n.b. could also do the OR/p dot plot for e.g. 0-4hr delayed
-#expecting that certain tissues will give the same groups of pairs, e.g. brain vs. SMC-enriched
-#heatmap may help untangle, and crucially, explain why some appear better than others
-#obtain a table of pairs vs. tissue/overlap type
 
 #lncRNA names col:
 CoRegPairs_eQTL_supported$lncNames <- CoRegPairs_eQTL_supported$EnsName.x
@@ -552,21 +395,17 @@ CoRegPairs_eQTL_supported$lncNames[grepl("MSTRG", CoRegPairs_eQTL_supported$EnsI
 CoRegPairs_eQTL_supported$pairsNice <- paste(CoRegPairs_eQTL_supported$lncNames, 
                                                    CoRegPairs_eQTL_supported$EnsName.y, sep = "-")
 
-#cols 20:82 for a pheatmap
+#find cols for a pheatmap
 colnames(CoRegPairs_eQTL_supported)
 
-mat <- lapply(CoRegPairs_eQTL_supported[,22:(dim(CoRegPairs_eQTL_supported)[2]-3)], as.numeric)
+mat <- lapply(CoRegPairs_eQTL_supported[,22:60], as.numeric)
 mat <- as.matrix(bind_rows(mat))
 rownames(mat) <- CoRegPairs_eQTL_supported$pairsNice
-
-#colnames(mat) <- gsub("Brain_Nucleus_accumbens_basal_ganglia", "Brain_Nucleus_acc.", colnames(mat))
-#colnames(mat) <- gsub("Esophagus_Gastroesophageal_Junction", "Esophagus_Gastroeso.", colnames(mat))
-#colnames(mat) <- gsub("Skin_Sun_Exposed_Lower_leg", "Skin_Sun_Exp.", colnames(mat))
 
 pheatmap::pheatmap(mat, angle_col = 315, border_color = "grey60", fontsize_row = 6, fontsize_col = 12, cluster_rows = F, 
                    legend = F)
 
-#shows that certain pairs found in certain tissues
+#certain pairs found in certain tissues
 #some pairs widely validated
 
 #aggregate tissue overlap - remove cluster not useful info:
@@ -586,6 +425,48 @@ mat_clust <- as.matrix(bind_cols(cluster_2_agg_res))
 rownames(mat_clust) <- CoRegPairs_eQTL_supported$pairsNice
 
 #put the cluster info instead into an annotation for the rows:
+GTEX_runs_selection <- list("Up4" = filter(AllLNC_AllPCG_2d3d_250,
+                                           (EnsID %in% c(fpkm_allGDE_Upwithin_4$EnsID) & EnsID.y %in% c(fpkm_allGDE_Upwithin_4$EnsID, 
+                                                                                                        fpkm_allGDE_Downwithin_4$EnsID))),
+                            "Down4" = filter(AllLNC_AllPCG_2d3d_250,
+                                             (EnsID %in% c(fpkm_allGDE_Downwithin_4$EnsID) & EnsID.y %in% c(fpkm_allGDE_Upwithin_4$EnsID, 
+                                                                                                            fpkm_allGDE_Downwithin_4$EnsID))),
+                            "Up8" = filter(AllLNC_AllPCG_2d3d_250,
+                                           (EnsID %in% c(fpkm_allGDE_Upwithin_8$EnsID) & EnsID.y %in% c(fpkm_allGDE_Upwithin_8$EnsID, 
+                                                                                                        fpkm_allGDE_Downwithin_8$EnsID))),
+                            "Down8" = filter(AllLNC_AllPCG_2d3d_250,
+                                             (EnsID %in% c(fpkm_allGDE_Downwithin_8$EnsID) & EnsID.y %in% c(fpkm_allGDE_Upwithin_8$EnsID, 
+                                                                                                            fpkm_allGDE_Downwithin_8$EnsID))),
+                            "Up24" = filter(AllLNC_AllPCG_2d3d_250,
+                                            (EnsID %in% c(fpkm_allGDE_Upwithin_24$EnsID) & EnsID.y %in% c(fpkm_allGDE_Upwithin_24$EnsID, 
+                                                                                                          fpkm_allGDE_Downwithin_24$EnsID))),
+                            "Down24" = filter(AllLNC_AllPCG_2d3d_250,
+                                              (EnsID %in% c(fpkm_allGDE_Downwithin_24$EnsID) & EnsID.y %in% c(fpkm_allGDE_Upwithin_24$EnsID, 
+                                                                                                              fpkm_allGDE_Downwithin_24$EnsID))),
+                            "Up4Del" = filter(AllLNC_AllPCG_2d3d_250,
+                                              (EnsID %in% fpkm_allGDE_Upwithin_4$EnsID & EnsID.y %in% c(fpkm_allGDE_within_8$EnsID, 
+                                                                                                        fpkm_allGDE_within_24$EnsID))),
+                            "Down4Del" = filter(AllLNC_AllPCG_2d3d_250,
+                                                (EnsID %in% fpkm_allGDE_Downwithin_4$EnsID & EnsID.y %in% c(fpkm_allGDE_within_8$EnsID, 
+                                                                                                            fpkm_allGDE_within_24$EnsID))),
+                            "All-same" = filter(AllLNC_AllPCG_2d3d_250,
+                                                (EnsID %in% c(fpkm_allGDE_Upwithin_4$EnsID, 
+                                                              fpkm_allGDE_Downwithin_4$EnsID) & EnsID.y %in% c(fpkm_allGDE_Upwithin_4$EnsID, 
+                                                                                                               fpkm_allGDE_Downwithin_4$EnsID)) |
+                                                  (EnsID %in% c(fpkm_allGDE_Upwithin_8$EnsID, 
+                                                                fpkm_allGDE_Downwithin_8$EnsID) & EnsID.y %in% c(fpkm_allGDE_Upwithin_8$EnsID, 
+                                                                                                                 fpkm_allGDE_Downwithin_8$EnsID)) |
+                                                  (EnsID %in% c(fpkm_allGDE_Upwithin_24$EnsID, 
+                                                                fpkm_allGDE_Downwithin_24$EnsID) & EnsID.y %in% c(fpkm_allGDE_Upwithin_24$EnsID, 
+                                                                                                                  fpkm_allGDE_Downwithin_24$EnsID))),
+                            "All-delayed"= filter(AllLNC_AllPCG_2d3d_250,
+                                                  (EnsID %in% c(fpkm_allGDE_Upwithin_4$EnsID, 
+                                                                fpkm_allGDE_Downwithin_4$EnsID) & EnsID.y %in% c(fpkm_allGDE_within_8$EnsID, 
+                                                                                                                 fpkm_allGDE_within_24$EnsID)) |
+                                                    (EnsID %in% c(fpkm_allGDE_Upwithin_8$EnsID, 
+                                                                  fpkm_allGDE_Downwithin_8$EnsID) & EnsID.y %in% c(fpkm_allGDE_within_24$EnsID)))
+)
+
 names(GTEX_runs_selection)
 
 CoRegPairs_eQTL_supported$CClncRNA_Type[CoRegPairs_eQTL_supported$pairs %in% GTEX_runs_selection[[1]]$pairs] <- "Induced 0-4hr"

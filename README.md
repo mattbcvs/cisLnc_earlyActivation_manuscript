@@ -12,7 +12,8 @@ Recreation of figures used in paper can be done with the files contained in inpu
 Scripts to make figures are as follows
 - Fig1: scripts/PT-1-DEG-ANNOTATION-EARLY-PHASE/PT1-4
 - Fig2: scripts/PT-2-CISLNC-EARLY-PHASE-RNASEQ/PT2-8 and PT2-9
-- Fig3: scripts/PT-3-CISLNC-EXTERNALDATA-OVERLAP/
+- Fig3: scripts/PT-3-CISLNC-EXTERNALDATA-OVERLAP/PT3-10, PT3-13 and PT3-14
+- FigS7: scripts/PT-6-ADDED-VALUE/PT6-24-REMAP
 - Fig4: scripts/PT-4-INFLUENTIALLOCI/
 - Fig6: scripts/TBA
 - Fig7: scripts/PT-5-OTHER-TIMECOURSES
