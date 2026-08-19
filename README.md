@@ -4,6 +4,7 @@ Input files created from steps prior to the R documentation are not included but
 - GTF files for the bespoke annotation
 - RSEM outputs for gene-level and transcript-level counts
 - PLAR outputs indicating transcript-level coding or non-coding status
+- BigWig files
 
 Full details to recreate all aspects of the analysis are supplied in the methods section of the paper
 
